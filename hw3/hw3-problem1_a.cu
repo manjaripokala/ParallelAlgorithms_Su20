@@ -14,7 +14,7 @@ __global__ void global_reduce_kernel(int * d_out, int * d_in)
     {
         if (tid < s)
         {
-            if ( d_in[myId] < d_in[myId + s]){
+            if ( d_in[myId] > d_in[myId + s]){
                 d_in[myId]= d_in[myId + s];
             }
         }
@@ -45,7 +45,7 @@ __global__ void shmem_reduce_kernel(int * d_out, const int * d_in)
     {
         if (tid < s)
         {
-            if ( sdata[tid] < sdata[tid + s]){
+            if ( sdata[tid] > sdata[tid + s]){
                 sdata[tid]= sdata[tid + s];
             }
         }
@@ -119,20 +119,20 @@ int main(int argc, char **argv)
     const int ARRAY_BYTES = A.size * sizeof(int);
 
     // generate the input array on the host
-    int max = 0;
+    int min = 0;
     printf("array size is %d\n", ARRAY_SIZE);
     clock_t t;
     t = clock();
 
     for(int i = 0; i < ARRAY_SIZE; i++) {
-        if (max <= h_in[i]){
-            max = h_in[i];
+        if (min > h_in[i]){
+            min = h_in[i];
         }
     }
     t = clock() - t;
     double time_taken = ((double)t)/(CLOCKS_PER_SEC/1000); // calculate the elapsed time
     printf("The host took %f ms to execute\n", time_taken);
-    printf("Max at host: %d\n", max);
+    printf("min at host: %d\n", min);
 
     // declare GPU memory pointers
     int * d_in, * d_intermediate, * d_out;
@@ -164,7 +164,7 @@ int main(int argc, char **argv)
     int h_out;
     cudaMemcpy(&h_out, d_out, sizeof(int), cudaMemcpyDeviceToHost);
     printf("average time elapsed in ms: %f\n", elapsedTime);
-    printf("Max returned by device: %d\n", h_out);
+    printf("min returned by device: %d\n", h_out);
 
     printf("Running reduce with shared mem\n");
     cudaEventRecord(start2, 0);
@@ -176,7 +176,7 @@ int main(int argc, char **argv)
     int h_out2;
     cudaMemcpy(&h_out2, d_out, sizeof(int), cudaMemcpyDeviceToHost);
     printf("average time elapsed in ms: %f\n", elapsedTime2);
-    printf("Max returned by device: %d\n", h_out2);
+    printf("min returned by device: %d\n", h_out2);
 
     // free GPU memory allocation
     cudaFree(d_in);

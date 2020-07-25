@@ -57,12 +57,12 @@ int main(int argc, char ** argv) {
 //    clock_t t;
 //    t = clock();
 
-    printf("%s\n", "Input[100]:");
+    printf("%s\n", "Input[200]:");
 
     for(int i = 0; i < 200; i++) {
         printf("%d, ",(h_in[i]% 10));
     }
-    printf("\n %s\n", "Values[100]:");
+    printf("\n %s\n", "Values[200]:");
 
 //    t = clock() - t;
 //    double time_taken = ((double)t)/(CLOCKS_PER_SEC/1000); // calculate the elapsed time
@@ -84,7 +84,7 @@ int main(int argc, char ** argv) {
     getlastdigit<<<1, ARRAY_SIZE>>>(d_out, d_in);
 
     // copy back the result array to the CPU
-    cudaMemcpy(h_out, d_out, ARRAY_BYTES, cudaMemcpyDeviceToHost);
+    cudaMemcpy(&h_out, d_out, ARRAY_BYTES, cudaMemcpyDeviceToHost);
 
     // print out the resulting array
     for (int i =0; i < 200; i++) {

@@ -32,10 +32,8 @@ void initArray(Array *a, size_t initialSize) {
 //}
 
 void insertArray(Array *a, int element) {
-    // a->used is the number of used entries, because a->array[a->used++] updates a->used only *after* the array has been accessed.
-    // Therefore a->used can go up to a->size
     if (a->used == a->size) {
-        a->size *= 2;
+        a->size += 1;
         a->array =(int*) realloc(a->array, a->size * sizeof(int));
     }
     a->array[a->used++] = element;
@@ -69,7 +67,7 @@ Array initArrayA(){
         printf("%s","error");
         return a;
     }
-    if( fgets (str, 50000, fp)!=NULL ) {
+    while( fgets (str, 50000, fp)!=NULL ) {
         /* writing content to stdout */
 //        printf("%s\n", str);
         char* token;
