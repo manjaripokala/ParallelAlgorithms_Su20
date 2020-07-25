@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <cuda_runtime.h>
-#include "Array.h"
+#include "Array.c"
 
 __global__ void global_reduce_kernel(int * d_out, int * d_in)
 {
@@ -44,8 +44,8 @@ __global__ void shmem_reduce_kernel(int * d_out, const int * d_in)
     {
         if (tid < s)
         {
-            if ( sdata[myId] < sdata[myId + s]){
-                sdata[myId]= sdata[myId + s];
+            if ( sdata[tid] < sdata[tid + s]){
+                sdata[tid]= sdata[tid + s];
             }
         }
         __syncthreads();        // make sure all adds at one stage are done!
@@ -92,8 +92,34 @@ void reduce(int * d_out, int * d_intermediate, int * d_in,
     }
 }
 
+Array initArrayA(){
+    FILE *fp;
+    char str[50000];
+    Array a;
+    initArray(&a, 100);  // initially 5 elements
+
+    /* opening file for reading */
+    fp = fopen("inp.txt" , "r");
+    if(fp == NULL) {
+        printf("%s","error");
+        return a;
+    }
+    if( fgets (str, 50000, fp)!=NULL ) {
+        /* writing content to stdout */
+//        printf("%s\n", str);
+        char* token;
+        char* rest = str;
+
+        while ((token = strtok_r(rest, " , ", &rest)))
+            insertArray(&a, atoi(token));
+    }
+    fclose(fp);
+    return a;
+}
+
 int main(int argc, char **argv)
 {
+    printf("here");
     int deviceCount;
     cudaGetDeviceCount(&deviceCount);
     if (deviceCount == 0) {
@@ -112,18 +138,21 @@ int main(int argc, char **argv)
                (int)devProps.major, (int)devProps.minor,
                (int)devProps.clockRate);
     }
-    int * h_in = initArrayA();
-    const int ARRAY_SIZE = sizeof(ArrayA);
-    const int ARRAY_BYTES = ARRAY_SIZE * sizeof(int);
+    Array A = initArrayA();
+    int * h_in = A.array;
+    const int ARRAY_SIZE = A.size;
+    const int ARRAY_BYTES = A.size * sizeof(int);
 
     // generate the input array on the host
     int max = 0;
+    printf("array size is %d\n", ARRAY_SIZE);
+
     for(int i = 0; i < ARRAY_SIZE; i++) {
-        if (max < h_in[i]){
-            max= h_in[i];
+        if (max <= h_in[i]){
+            max = h_in[i];
         }
     }
-    printf("Max at host: %f\n", sum);
+    printf("Max at host: %d\n", max);
 
     // declare GPU memory pointers
     int * d_in, * d_intermediate, * d_out;
@@ -140,6 +169,10 @@ int main(int argc, char **argv)
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
+    cudaEvent_t start2, stop2;
+    cudaEventCreate(&start2);
+    cudaEventCreate(&stop2);
+
     printf("Running global reduce\n");
     cudaEventRecord(start, 0);
     reduce(d_out, d_intermediate, d_in, ARRAY_SIZE, false);
@@ -154,16 +187,16 @@ int main(int argc, char **argv)
     printf("Max returned by device: %d\n", h_out);
 
     printf("Running reduce with shared mem\n");
-    cudaEventRecord(start, 0);
+    cudaEventRecord(start2, 0);
     reduce(d_out, d_intermediate, d_in, ARRAY_SIZE, true);
-    cudaEventRecord(stop, 0);
-    cudaEventSynchronize(stop);
-    float elapsedTime;
-    cudaEventElapsedTime(&elapsedTime, start, stop);
-    int h_out;
-    cudaMemcpy(&h_out, d_out, sizeof(int), cudaMemcpyDeviceToHost);
-    printf("average time elapsed: %f\n", elapsedTime);
-    printf("Max returned by device: %d\n", h_out);
+    cudaEventRecord(stop2, 0);
+    cudaEventSynchronize(stop2);
+    float elapsedTime2;
+    cudaEventElapsedTime(&elapsedTime2, start2, stop2);
+    int h_out2;
+    cudaMemcpy(&h_out2, d_out, sizeof(int), cudaMemcpyDeviceToHost);
+    printf("average time elapsed: %f\n", elapsedTime2);
+    printf("Max returned by device: %d\n", h_out2);
 
     // free GPU memory allocation
     cudaFree(d_in);
