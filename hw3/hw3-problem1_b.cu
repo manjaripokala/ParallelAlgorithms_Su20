@@ -92,31 +92,6 @@ void reduce(int * d_out, int * d_intermediate, int * d_in,
     }
 }
 
-Array initArrayA(){
-    FILE *fp;
-    char str[50000];
-    Array a;
-    initArray(&a, 100);  // initially 5 elements
-
-    /* opening file for reading */
-    fp = fopen("inp.txt" , "r");
-    if(fp == NULL) {
-        printf("%s","error");
-        return a;
-    }
-    if( fgets (str, 50000, fp)!=NULL ) {
-        /* writing content to stdout */
-//        printf("%s\n", str);
-        char* token;
-        char* rest = str;
-
-        while ((token = strtok_r(rest, " , ", &rest)))
-            insertArray(&a, atoi(token));
-    }
-    fclose(fp);
-    return a;
-}
-
 int main(int argc, char **argv)
 {
     printf("here");
