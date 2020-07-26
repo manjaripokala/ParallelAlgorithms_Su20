@@ -59,7 +59,7 @@ Array initArrayA(){
     FILE *fp;
     char str[50000];
     Array a;
-    initArray(&a, 100);
+    initArray(&a, 1);
 
     /* opening file for reading */
     fp = fopen("inp.txt" , "r");
