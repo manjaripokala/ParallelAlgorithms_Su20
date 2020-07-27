@@ -1,0 +1,175 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <cuda_runtime.h>
+#include <assert.h>
+#include <math.h>
+#include "Array.c"
+
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+   if (code != cudaSuccess) 
+   {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+   }
+}
+
+__global__ void global_count_range_bins_kernel(int * d_out, int * d_in, int size)
+{
+ 
+    int myId = threadIdx.x + blockDim.x * blockIdx.x;
+    //printf("myId: %d", myId); 
+    // stride is the total number of threads in the grid
+    // Using stride increases the performance and benefits with scalability & thread reusage
+    int stride = blockDim.x * gridDim.x;
+    
+    // do counts in global mem
+    for (; myId < size; myId += stride)
+    {
+        atomicAdd(&(d_out[d_in[myId]/100]), 1);
+        __syncthreads();        // make sure all adds at one stage are done!
+    }
+
+}
+
+void count_bins(int * d_out, int * d_intermediate, int * d_in,
+            int size, bool usesSharedMemory)
+{
+    const int maxThreadsPerBlock = 512;
+    int threads = maxThreadsPerBlock;
+    int blocks = ceil(float(size) / float(maxThreadsPerBlock));
+
+    if (usesSharedMemory)
+    {
+        printf("shared kernel in count \n");
+        //shmem_count_range_bins_kernel<<<blocks, threads, threads * sizeof(int)>>>
+        //    (d_out, d_in, size);
+    }
+    else
+    {
+        printf("global kernel in count \n");
+        global_count_range_bins_kernel<<<blocks, threads>>>(d_out, d_in, size);
+        gpuErrchk( cudaPeekAtLastError() );
+        gpuErrchk( cudaDeviceSynchronize() );
+    }
+
+    // now we're down to one block left, so reduce it
+    /*threads = blocks; // launch one thread for each block in prev step
+    blocks = 1;
+    if (usesSharedMemory)
+    {
+        //shmem_reduce_kernel<<<blocks, threads, threads * sizeof(int)>>>
+        //        (d_out, d_intermediate, size);
+    }
+    else
+    {
+        global_count_range_bins_kernel<<<blocks, threads>>>
+                (d_out, d_intermediate, size);
+    }*/
+   
+}
+
+
+int main(int argc, char **argv)
+{
+    int deviceCount;
+    cudaGetDeviceCount(&deviceCount);
+    if (deviceCount == 0) {
+        fprintf(stderr, "error: no devices supporting CUDA.\n");
+        exit(EXIT_FAILURE);
+    }
+    int dev = 0;
+    cudaSetDevice(dev);
+
+    cudaDeviceProp devProps;
+    if (cudaGetDeviceProperties(&devProps, dev) == 0)
+    {
+        printf("Using device %d:\n", dev);
+        printf("%s; global mem: %dB; compute v%d.%d; clock: %d kHz\n",
+               devProps.name, (int)devProps.totalGlobalMem,
+               (int)devProps.major, (int)devProps.minor,
+               (int)devProps.clockRate);
+    }
+
+    const int ARRAY_SIZE = 1005000;
+    const int ARRAY_BYTES = ARRAY_SIZE * sizeof(int);
+
+    // generate the input array on the host
+    //Array A = initArrayA();
+    //int * h_in = A.array;
+    //const int ARRAY_SIZE = A.size;
+    //const int ARRAY_BYTES = A.size * sizeof(int);
+
+    printf("array size is %d\n", ARRAY_SIZE);
+
+
+    int h_in[ARRAY_SIZE];
+    int count = 0;
+    for(int i = 0; i < ARRAY_SIZE; i++) {
+        // generate input array int in [0, 999]
+        h_in[i] = 99;
+        count += 1;
+        //sum += h_in[i];
+    }
+    printf("count at host: %d\n", count);
+
+    // declare GPU memory pointers
+    int * d_in, * d_intermediate, * d_out;
+
+    // allocate GPU memory
+    cudaMalloc((void **) &d_in, ARRAY_BYTES);
+    cudaMalloc((void **) &d_intermediate, ARRAY_BYTES); // overallocated
+    cudaMalloc((void **) &d_out, 10*sizeof(int));
+
+    // transfer the input array to the GPU
+    cudaMemcpy(d_in, h_in, ARRAY_BYTES, cudaMemcpyHostToDevice);
+
+    int whichKernel = 0;
+    if (argc == 2) {
+        whichKernel = atoi(argv[1]);
+    }
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    // launch the kernel
+    switch(whichKernel) {
+    case 0:
+        printf("Running global count\n");
+        cudaEventRecord(start, 0);
+        count_bins(d_out, d_intermediate, d_in, ARRAY_SIZE, false);
+        cudaEventRecord(stop, 0);
+        break;
+    case 1:
+        printf("Running count with shared mem\n");
+        cudaEventRecord(start, 0);
+        count_bins(d_out, d_intermediate, d_in, ARRAY_SIZE, true);
+        cudaEventRecord(stop, 0);
+        break;
+    default:
+        fprintf(stderr, "error: ran no kernel\n");
+        exit(EXIT_FAILURE);
+    }
+    cudaEventSynchronize(stop);
+    float elapsedTime;
+    cudaEventElapsedTime(&elapsedTime, start, stop);
+
+
+    // copy back the counts from GPU
+    int b[10];
+    cudaMemcpy(&b, d_out, 10*sizeof(int), cudaMemcpyDeviceToHost);
+
+    printf("average time elapsed: %f\n", elapsedTime);
+    for(int i = 0; i < 10; i++) {
+      printf("count returned by device: %d\n", b[i]);
+    }
+
+    
+    // free GPU memory allocation
+    cudaFree(d_in);
+    cudaFree(d_intermediate);
+    cudaFree(d_out);
+
+    return 0;
+}
