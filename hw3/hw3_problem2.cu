@@ -38,6 +38,7 @@ void count_bins(int * d_out, int * d_intermediate, int * d_in,
 {
     const int maxThreadsPerBlock = 512;
     int threads = maxThreadsPerBlock;
+    // handles non power of 2 arrays
     int blocks = ceil(float(size) / float(maxThreadsPerBlock));
 
     if (usesSharedMemory)
@@ -54,20 +55,6 @@ void count_bins(int * d_out, int * d_intermediate, int * d_in,
         gpuErrchk( cudaDeviceSynchronize() );
     }
 
-    // now we're down to one block left, so reduce it
-    /*threads = blocks; // launch one thread for each block in prev step
-    blocks = 1;
-    if (usesSharedMemory)
-    {
-        //shmem_reduce_kernel<<<blocks, threads, threads * sizeof(int)>>>
-        //        (d_out, d_intermediate, size);
-    }
-    else
-    {
-        global_count_range_bins_kernel<<<blocks, threads>>>
-                (d_out, d_intermediate, size);
-    }*/
-   
 }
 
 
@@ -92,28 +79,15 @@ int main(int argc, char **argv)
                (int)devProps.clockRate);
     }
 
-    const int ARRAY_SIZE = 1005000;
-    const int ARRAY_BYTES = ARRAY_SIZE * sizeof(int);
 
     // generate the input array on the host
-    //Array A = initArrayA();
-    //int * h_in = A.array;
-    //const int ARRAY_SIZE = A.size;
-    //const int ARRAY_BYTES = A.size * sizeof(int);
+    Array A = initArrayA();
+    int * h_in = A.array;
+    const int ARRAY_SIZE = A.size;
+    const int ARRAY_BYTES = A.size * sizeof(int);
 
     printf("array size is %d\n", ARRAY_SIZE);
-
-
-    int h_in[ARRAY_SIZE];
-    int count = 0;
-    for(int i = 0; i < ARRAY_SIZE; i++) {
-        // generate input array int in [0, 999]
-        h_in[i] = 99;
-        count += 1;
-        //sum += h_in[i];
-    }
-    printf("count at host: %d\n", count);
-
+	
     // declare GPU memory pointers
     int * d_in, * d_intermediate, * d_out;
 
@@ -125,6 +99,9 @@ int main(int argc, char **argv)
     // transfer the input array to the GPU
     cudaMemcpy(d_in, h_in, ARRAY_BYTES, cudaMemcpyHostToDevice);
 
+    
+    // problem 2a - select 0 as kernel
+    // problem 2a - select 1 as kernel
     int whichKernel = 0;
     if (argc == 2) {
         whichKernel = atoi(argv[1]);
@@ -156,13 +133,13 @@ int main(int argc, char **argv)
     cudaEventElapsedTime(&elapsedTime, start, stop);
 
 
-    // copy back the counts from GPU
+    // copy back the bin counts from GPU
     int b[10];
     cudaMemcpy(&b, d_out, 10*sizeof(int), cudaMemcpyDeviceToHost);
 
     printf("average time elapsed: %f\n", elapsedTime);
     for(int i = 0; i < 10; i++) {
-      printf("count returned by device: %d\n", b[i]);
+      printf("count returned by device B[%d]: %d\n", i, b[i]);
     }
 
     
@@ -173,3 +150,7 @@ int main(int argc, char **argv)
 
     return 0;
 }
+
+
+// Reference: https://github.com/manjaripokala/sum20-Parallel-algs/blob/master/cuda-examples/reduce.cu
+
