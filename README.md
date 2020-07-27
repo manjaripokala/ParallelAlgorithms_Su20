@@ -5,14 +5,14 @@
 
 ## How to copy the files to EC2 Instance?
 
-sudo scp -r -i "hw3.pem" /Users/pedzindm/Desktop/school/sum20-Parallel-algs/assignments/hw3  ubuntu@ec2-3-235-252-69.compute-1.amazonaws.com:~/
+sudo scp -r -i "hw3.pem" /Users/pedzindm/Desktop/school/sum20-Parallel-algs/assignments/hw3  ubuntu@ec2-3-236-217-218.compute-1.amazonaws.com:~/
 
 
 ## How to connect to EC2 instance?
 
 1) Navigate to assignment directory locally
 
-2) ssh -i "hw3.pem" ubuntu@ec2-3-235-252-69.compute-1.amazonaws.com
+2) ssh -i "hw3.pem" ubuntu@ec2-3-236-217-218.compute-1.amazonaws.com
 
 
 
@@ -25,3 +25,9 @@ sudo scp -r -i "hw3.pem" /Users/pedzindm/Desktop/school/sum20-Parallel-algs/assi
 2) ./`fileName`.out 
 
 WARNING: THe ubuntu@ec part can change so if you are having issues let me know
+
+## How to create new inp.txt files?
+
+1) navigate to Hw3
+2) python3 inputGen/dataGenerator.py 1000000 10000
+Arg1 = number of Values; Arg2 = range of values... ^ would return 1000000 numbers with range of 0-10000

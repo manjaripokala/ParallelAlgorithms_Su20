@@ -32,11 +32,11 @@ int main(int argc, char ** argv) {
 	cube<<<1, ARRAY_SIZE>>>(d_out, d_in);
 
 	// copy back the result array to the CPU
-	cudaMemcpy(h_out, d_out, ARRAY_BYTES, cudaMemcpyDeviceToHost);
+	cudaMemcpy(&h_out, d_out, ARRAY_BYTES, cudaMemcpyDeviceToHost);
 
 	// print out the resulting array
 	for (int i =0; i < ARRAY_SIZE; i++) {
-		printf("%f", h_out[i]);
+		printf("%f", &h_out[i]);
 		printf(((i % 4) != 3) ? "\t" : "\n");
 	}
 
