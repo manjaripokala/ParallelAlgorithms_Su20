@@ -29,5 +29,5 @@ WARNING: THe ubuntu@ec part can change so if you are having issues let me know
 ## How to create new inp.txt files?
 
 1) navigate to Hw3
-2) python3 inputGen/dataGenerator.py 1000000 10000
-Arg1 = number of Values; Arg2 = range of values... ^ would return 1000000 numbers with range of 0-10000
+2) python3 inputGen/dataGenerator.py 1001050 999
+Arg1 = number of Values; Arg2 = range of values... ^ would return 1001050 numbers with range of 0-999
