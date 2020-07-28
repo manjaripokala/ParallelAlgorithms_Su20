@@ -103,6 +103,13 @@ void count_bins(int * d_out, int * d_intermediate, int * d_in,
 
 int main(int argc, char **argv)
 {
+    FILE *q2a;
+    FILE *q2b;
+    FILE *q2c;
+    q2a = fopen("q2a.txt", "w");
+    q2b = fopen("q2b.txt", "w");
+    q2c = fopen("q2c.txt", "w");
+
     int deviceCount;
     cudaGetDeviceCount(&deviceCount);
     if (deviceCount == 0) {

@@ -145,10 +145,15 @@ __global__ void getlastdigit(int *d_out, int *d_in, int n) {
 
 int main(int argc, char **argv)
 {
+    FILE *q1a;
+    FILE *q1b;
+    q1a = fopen("q1a.txt", "w");
+    q1b = fopen("q1b.txt", "w");
+
     int deviceCount;
     cudaGetDeviceCount(&deviceCount);
     if (deviceCount == 0) {
-        fprintf(stderr, "error: no devices supporting CUDA.\n");
+        fprintf(q1a, "error: no devices supporting CUDA.\n");
         exit(EXIT_FAILURE);
     }
     int dev = 0;
@@ -157,8 +162,8 @@ int main(int argc, char **argv)
     cudaDeviceProp devProps;
     if (cudaGetDeviceProperties(&devProps, dev) == 0)
     {
-        printf("Using device %d:\n", dev);
-        printf("%s; global mem: %dB; compute v%d.%d; clock: %d kHz\n",
+        fprintf(q1a,"Using device %d:\n", dev);
+        fprintf(q1a,"%s; global mem: %dB; compute v%d.%d; clock: %d kHz\n",
                devProps.name, (int)devProps.totalGlobalMem,
                (int)devProps.major, (int)devProps.minor,
                (int)devProps.clockRate);
@@ -168,21 +173,21 @@ int main(int argc, char **argv)
     const int ARRAY_SIZE = A.size;
     const int ARRAY_BYTES = A.size * sizeof(int);
 
-    // generate the input array on the host
-    int min = 0;
-    printf("array size is %d\n", ARRAY_SIZE);
-    clock_t t;
-    t = clock();
-    printf("RUNNING PROBLEM 1 PART A\n", );
-    for(int i = 0; i < ARRAY_SIZE; i++) {
-        if (min > h_in[i]){
-            min = h_in[i];
-        }
-    }
-    t = clock() - t;
-    double time_taken = ((double)t)/(CLOCKS_PER_SEC/1000); // calculate the elapsed time
-    printf("The host took %f ms to execute\n", time_taken);
-    printf("min at host: %d\n", min);
+
+//    int min = 0;
+    fprintf(q1a,"array size is %d\n", ARRAY_SIZE);
+//    clock_t t;
+//    t = clock();
+//    fprintf(q1a,"\n\nRUNNING PROBLEM 1 PART A\n\n" );
+//    for(int i = 0; i < ARRAY_SIZE; i++) {
+//        if (min > h_in[i]){
+//            min = h_in[i];
+//        }
+//    }
+//    t = clock() - t;
+//    double time_taken = ((double)t)/(CLOCKS_PER_SEC/1000); // calculate the elapsed time
+//    fprintf("The host took %f ms to execute\n", time_taken);
+//    fprintf("min at host: %d\n", min);
 
     // declare GPU memory pointers
     int * d_in, * d_intermediate, * d_out;
@@ -203,7 +208,7 @@ int main(int argc, char **argv)
     cudaEventCreate(&start2);
     cudaEventCreate(&stop2);
 
-    printf("Running global reduce\n");
+    fprintf(q1a,"Running global reduce for min\n");
     cudaEventRecord(start, 0);
     reduce(d_out, d_intermediate, d_in, ARRAY_SIZE, false);
     cudaEventRecord(stop, 0);
@@ -213,10 +218,10 @@ int main(int argc, char **argv)
     cudaEventElapsedTime(&elapsedTime, start, stop);
     int h_out;
     cudaMemcpy(&h_out, d_out, sizeof(int), cudaMemcpyDeviceToHost);
-    printf("average time elapsed in ms: %f\n", elapsedTime);
-    printf("min returned by device: %d\n", h_out);
+    fprintf(q1a,"average time elapsed in ms: %f\n", elapsedTime);
+    fprintf(q1a,"min returned by device: %d\n", h_out);
 
-    printf("Running reduce with shared mem\n");
+    fprintf(q1a,"Running reduce with shared mem\n");
     cudaEventRecord(start2, 0);
     reduce(d_out, d_intermediate, d_in, ARRAY_SIZE, true);
     cudaEventRecord(stop2, 0);
@@ -225,72 +230,70 @@ int main(int argc, char **argv)
     cudaEventElapsedTime(&elapsedTime2, start2, stop2);
     int h_out2;
     cudaMemcpy(&h_out2, d_out, sizeof(int), cudaMemcpyDeviceToHost);
-    printf("average time elapsed in ms: %f\n", elapsedTime2);
-    printf("min returned by device: %d\n", h_out2);
+    fprintf(q1a,"average time elapsed in ms: %f\n", elapsedTime2);
+    fprintf(q1a,"min returned by device: %d\n", h_out2);
 
     // free GPU memory allocation
     cudaFree(d_in);
     cudaFree(d_intermediate);
     cudaFree(d_out);
 
-    printf("RUNNING PROBLEM 1 PART B\n", );
+//    fprintf("\n\nRUNNING PROBLEM 1 PART B\n\n" );
 
-    int deviceCount;
     cudaGetDeviceCount(&deviceCount);
     if (deviceCount == 0) {
-        fprintf(stderr, "error: no devices supporting CUDA.\n");
+        fprintf(q1b, "error: no devices supporting CUDA.\n");
         exit(EXIT_FAILURE);
     }
-    int dev = 0;
+    dev = 0;
     cudaSetDevice(dev);
 
     cudaDeviceProp devProps;
     if (cudaGetDeviceProperties(&devProps, dev) == 0) {
-        printf("Using device %d:\n", dev);
-        printf("%s; global mem: %dB; compute v%d.%d; clock: %d kHz\n",
+        fprintf(q1b,"Using device %d:\n", dev);
+        fprintf(q1b,"%s; global mem: %dB; compute v%d.%d; clock: %d kHz\n",
                devProps.name, (int) devProps.totalGlobalMem,
                (int) devProps.major, (int) devProps.minor,
                (int) devProps.clockRate);
     }
-    Array A = initArrayA();
-    int * h_in = A.array;
-    const int ARRAY_SIZE = A.size;
-    const int ARRAY_BYTES = A.size * sizeof(int);
-    int h_out[ARRAY_SIZE];
 
-    printf("array size is %d\n", ARRAY_SIZE);
+    int h2_out[ARRAY_SIZE];
 
-    printf("%s\n", "Input[500]:");
+    fprintf(q1b,"array size is %d\n", ARRAY_SIZE);
 
-    for (int i = 0; i < 500; i++) {
-        printf("%d, ", (h_in[i] % 10) );
+    fprintf(q1b,"%s\n", "From Host:");
+
+    for (int i = 0; i < ARRAY_SIZE; i++) {
+            fprintf(q1b,"%d, ", (h_in[i] % 10));
     }
-    printf("\n%s\n", "Values[500]:");
+    fprintf(q1b,"\n%s\n", "From Device:");
 
-    int *d_in;
-    int *d_out;
+    int *d2_in;
+    int *d2_out;
 
     // allocate GPU memory
-    cudaMalloc((void **) &d_in, ARRAY_BYTES);
-    cudaMalloc((void **) &d_out, ARRAY_BYTES);
+    cudaMalloc((void **) &d2_in, ARRAY_BYTES);
+    cudaMalloc((void **) &d2_out, ARRAY_BYTES);
 
     // transfer the array to the GPU
-    cudaMemcpy(d_in, h_in, ARRAY_BYTES, cudaMemcpyHostToDevice);
+    cudaMemcpy(d2_in, h_in, ARRAY_BYTES, cudaMemcpyHostToDevice);
 
     // launch the kernel
     int M = 256;
-    getlastdigit<<<(ARRAY_SIZE + M-1) / M,M>>>(d_out, d_in,ARRAY_SIZE );
+    getlastdigit<<<(ARRAY_SIZE + M-1) / M,M>>>(d2_out, d2_in,ARRAY_SIZE );
 
     // copy back the result array to the CPU
-    cudaMemcpy(h_out, d_out, ARRAY_BYTES, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h2_out, d2_out, ARRAY_BYTES, cudaMemcpyDeviceToHost);
 
     // print out the resulting array
-    for (int i = 0; i < 500; i++) {
-        printf("%d, ", h_out[i]);
+    for (int i = 0; i < 200; i++) {
+        if (i< ARRAY_SIZE) {
+            fprintf(q1b,"%d, ", h2_out[i]);
+        }
     }
-    cudaFree(d_in);
-    cudaFree(d_out);
-    printf("\n");
+    cudaFree(d2_in);
+    cudaFree(d2_out);
+    fprintf(q1b,"\n");
 
     return 0;
 }
