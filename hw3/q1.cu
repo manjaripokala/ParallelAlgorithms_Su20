@@ -46,11 +46,10 @@ Array initArrayA(){
     fclose(fp);
     return a;
 }
-__global__ void global_reduce_kernel(int * d_out, int * d_in)
+__global__ void global_reduce_kernel(int * d_out, int * d_in, int size)
 {
     int myId = threadIdx.x + blockDim.x * blockIdx.x;
     int tid  = threadIdx.x;
-
     // do reduction in global mem
     for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
     {
@@ -60,7 +59,7 @@ __global__ void global_reduce_kernel(int * d_out, int * d_in)
                 d_in[myId]= d_in[myId + s];
             }
         }
-        __syncthreads();        // make sure all adds at one stage are done!
+        __syncthreads();
     }
 
     // only thread 0 writes result for this block back to global mem
@@ -70,7 +69,7 @@ __global__ void global_reduce_kernel(int * d_out, int * d_in)
     }
 }
 
-__global__ void shmem_reduce_kernel(int * d_out, const int * d_in)
+__global__ void shmem_reduce_kernel(int * d_out, int * d_in, int size)
 {
     // sdata is allocated in the kernel call: 3rd arg to <<<b, t, shmem>>>
     extern __shared__ float sdata[];
@@ -108,16 +107,17 @@ void reduce(int * d_out, int * d_intermediate, int * d_in,
     // and that size is a multiple of maxThreadsPerBlock
     const int maxThreadsPerBlock = 512;
     int threads = maxThreadsPerBlock;
-    int blocks = size / maxThreadsPerBlock;
+    int blocks = ceil(float(size) / float(maxThreadsPerBlock));
+
     if (usesSharedMemory)
     {
         shmem_reduce_kernel<<<blocks, threads, threads * sizeof(int)>>>
-                (d_intermediate, d_in);
+                (d_intermediate, d_in, size);
     }
     else
     {
         global_reduce_kernel<<<blocks, threads>>>
-                (d_intermediate, d_in);
+                (d_intermediate, d_in,size);
     }
 
     // now we're down to one block left, so reduce it
@@ -126,18 +126,18 @@ void reduce(int * d_out, int * d_intermediate, int * d_in,
     if (usesSharedMemory)
     {
         shmem_reduce_kernel<<<blocks, threads, threads * sizeof(int)>>>
-                (d_out, d_intermediate);
+                (d_out, d_intermediate, size);
     }
     else
     {
         global_reduce_kernel<<<blocks, threads>>>
-                (d_out, d_intermediate);
+                (d_out, d_intermediate,size);
     }
 }
 
-__global__ void getlastdigit(int *d_out, int *d_in, int n) {
+__global__ void getlastdigit(int *d_out, int *d_in, int size) {
     int index = threadIdx.x + blockIdx.x * blockDim.x;
-    if (index < n)
+    if (index < size)
         d_out[index] = (d_in[index] % 10);
 //    int idx = threadIdx.x;
 
@@ -248,7 +248,7 @@ int main(int argc, char **argv)
     dev = 0;
     cudaSetDevice(dev);
 
-    cudaDeviceProp devProps;
+//    cudaDeviceProp devProps;
     if (cudaGetDeviceProperties(&devProps, dev) == 0) {
         fprintf(q1b,"Using device %d:\n", dev);
         fprintf(q1b,"%s; global mem: %dB; compute v%d.%d; clock: %d kHz\n",
@@ -261,12 +261,12 @@ int main(int argc, char **argv)
 
     fprintf(q1b,"array size is %d\n", ARRAY_SIZE);
 
-    fprintf(q1b,"%s\n", "From Host:");
-
-    for (int i = 0; i < ARRAY_SIZE; i++) {
-            fprintf(q1b,"%d, ", (h_in[i] % 10));
-    }
-    fprintf(q1b,"\n%s\n", "From Device:");
+//    fprintf(q1b,"%s\n", "From Host:");
+//
+//    for (int i = 0; i < ARRAY_SIZE; i++) {
+//            fprintf(q1b,"%d, ", (h_in[i] % 10));
+//    }
+    fprintf(q1b,"\n%s\n\n", "From Device:");
 
     int *d2_in;
     int *d2_out;
@@ -286,7 +286,7 @@ int main(int argc, char **argv)
     cudaMemcpy(h2_out, d2_out, ARRAY_BYTES, cudaMemcpyDeviceToHost);
 
     // print out the resulting array
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < ARRAY_SIZE; i++) {
         if (i< ARRAY_SIZE) {
             fprintf(q1b,"%d, ", h2_out[i]);
         }
