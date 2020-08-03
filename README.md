@@ -5,14 +5,14 @@
 
 ## How to copy the files to EC2 Instance?
 
-sudo scp -r -i "hw3.pem" /Users/pedzindm/Desktop/school/sum20-Parallel-algs/assignments/hw3  ubuntu@ec2-3-236-217-218.compute-1.amazonaws.com:~/
+sudo scp -r -i "hw3.pem" /Users/pedzindm/Desktop/school/sum20-Parallel-algs/assignments/hw3  ubuntu@ec2-3-237-19-2.compute-1.amazonaws.com:~/
 
 
 ## How to connect to EC2 instance?
 
 1) Navigate to assignment directory locally
 
-2) ssh -i "hw3.pem" ubuntu@ec2-3-236-217-218.compute-1.amazonaws.com
+2) ssh -i "hw3.pem" ubuntu@ec2-3-237-19-2.compute-1.amazonaws.com
 
 
 
