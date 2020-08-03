@@ -53,7 +53,7 @@ __global__ void global_reduce_kernel(int * d_out, int * d_in, int size)
     // do reduction in global mem
     for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
     {
-        if (tid < s)
+        if (tid < s && tid+s < size && tid < size)
         {
             if ( d_in[myId] > d_in[myId + s]){
                 d_in[myId]= d_in[myId + s];
@@ -84,7 +84,7 @@ __global__ void shmem_reduce_kernel(int * d_out, int * d_in, int size)
     // do reduction in shared mem
     for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
     {
-        if (tid < s)
+        if (tid < s && tid+s < size && tid < size)
         {
             if ( sdata[tid] > sdata[tid + s]){
                 sdata[tid]= sdata[tid + s];

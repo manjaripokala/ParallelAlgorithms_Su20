@@ -48,14 +48,13 @@ Array initArrayA(){
 }
 __global__ void global_reduce_kernel(int * d_out, int * d_in, int size)
 {
-    int myId = threadIdx.x + blockDim.x * blockIdx.x;
-    int tid  = threadIdx.x;
+    int myId = threadIdx.x;
     // do reduction in global mem
     for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
     {
-        if (tid < s)
+        if (myId < s && myId+s < size)
         {
-            if ( d_in[myId] > d_in[myId + s]){
+            if ( d_in[myId] < d_in[myId + s]){
                 d_in[myId]= d_in[myId + s];
             }
         }
@@ -84,7 +83,7 @@ __global__ void shmem_reduce_kernel(int * d_out, int * d_in, int size)
     // do reduction in shared mem
     for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
     {
-        if (tid < s)
+        if (tid < s && tid+s < size && tid < size)
         {
             if ( sdata[tid] > sdata[tid + s]){
                 sdata[tid]= sdata[tid + s];
@@ -116,7 +115,7 @@ void reduce(int * d_out, int * d_intermediate, int * d_in,
     }
     else
     {
-        global_reduce_kernel<<<blocks, threads>>>
+        global_reduce_kernel<<<1, threads>>>
                 (d_intermediate, d_in,size);
     }
 
@@ -130,7 +129,7 @@ void reduce(int * d_out, int * d_intermediate, int * d_in,
     }
     else
     {
-        global_reduce_kernel<<<blocks, threads>>>
+        global_reduce_kernel<<<1, threads>>>
                 (d_out, d_intermediate,size);
     }
 }
