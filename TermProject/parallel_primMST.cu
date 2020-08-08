@@ -504,6 +504,8 @@ int main()
   printf("Before Prim\n");
   //fflush( stdout );
 	
+  primMST(graph, ARRAY_SIZE, source); 
+
   printf("After Prim\n");
   //fflush( stdout );
 
