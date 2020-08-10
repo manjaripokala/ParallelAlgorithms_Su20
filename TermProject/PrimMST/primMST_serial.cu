@@ -246,56 +246,144 @@ int main()
 	// Please note that initialization vector in below format will
 	// work fine in C++11, C++14, C++17 but will fail in C++98.
 	std::vector<edge> edges;
-	edges.push_back(edge{4,5,4});
-	edges.push_back(edge{4,11,8});
-	edges.push_back(edge{5,6,8});
-	edges.push_back(edge{5,11,11});
-	edges.push_back(edge{6,7,7});
-	edges.push_back(edge{6,12,2});
-	edges.push_back(edge{6,9,4});
-	edges.push_back(edge{7,8,9});
-	edges.push_back(edge{7,9,14});
-	edges.push_back(edge{8,9,10});
-	edges.push_back(edge{9,10,2});
-	edges.push_back(edge{10,11,1});
-	edges.push_back(edge{10,12,6});
-	edges.push_back(edge{11,12,7});
-	
-	// Maxmum label value of vertices in the given graph, assume 1000
-	int64_t N = 15;
-	
-	// construct graph
-	Graph graph(edges, N);
+//	edges.push_back(edge{4,5,4});
+//	edges.push_back(edge{4,11,8});
+//	edges.push_back(edge{5,6,8});
+//	edges.push_back(edge{5,11,11});
+//	edges.push_back(edge{6,7,7});
+//	edges.push_back(edge{6,12,2});
+//	edges.push_back(edge{6,9,4});
+//	edges.push_back(edge{7,8,9});
+//	edges.push_back(edge{7,9,14});
+//	edges.push_back(edge{8,9,10});
+//	edges.push_back(edge{9,10,2});
+//	edges.push_back(edge{10,11,1});
+//	edges.push_back(edge{10,12,6});
+//	edges.push_back(edge{11,12,7});
+    struct dirent *de;  // Pointer for directory entry
 
-	// print adjacency list representation of graph
-	printGraph(graph);
+    // opendir() returns a pointer of DIR type.
+    DIR *dr = opendir(".");
 
-	//Source vertex as first non empty vertex in adjacency List
-	int64_t source;
-	for(int64_t i = 0; i<nonEmptyIndices.size(); i++) {
-			if (nonEmptyIndices[i]) {
-				source = i;
-			break;
-		}
-	}
-	
-	//printf("source:%d\n", source);
-	
-  //printf("Before Prim\n");
-  //fflush( stdout );
-	primMST(graph, N, source); 
-  //printf("After Prim\n");
-  //fflush( stdout );
+    if (dr == NULL)  // opendir returns NULL if couldn't open directory
+    {
+        printf("Could not open current directory\n");
+        return 0;
+    }
 
-	std::set<fromTo>::iterator it; //set iterator
-	//printf("T size:%d\n", T.size());
-	//printf("MST in iterator\n");
-	for (it=T.begin(); it!=T.end(); ++it) {
-		fromTo e = *it; 
-		printf("%d - %d\n", e.from, e.to); 
-	}
+    // Refer http://pubs.opengroup.org/onlinepubs/7990989775/xsh/readdir.html
+    // for readdir()
 
-	return 0; 
+    while ((de = readdir(dr)) != NULL) {
+        char filePath[PATH_MAX + 1];
+        if (strncmp(get_filename_ext(de->d_name), "csv", 2) == 0) {
+            realpath(de->d_name, filePath);
+            printf("%s\n", filePath);
+            char const *const fileName = filePath;
+            FILE *file = fopen(fileName, "r"); /* should check the result */
+            printf("%s\n", "file opened");
+            char line[4000];
+
+            int state = 0;
+            int subState = 0;
+            while (fgets(line, sizeof(line), file)) {
+                char *token;
+                char *rest = line;
+                int *source;
+                int *target;
+                int *value;
+//                printf("%s\n", "Next line:::");
+                while ((token = strtok_r(rest, "|\n", &rest))) {
+//                    printf("%s\n", token);
+                    if (strncmp(token, "Nodes", 2) == 0) {
+//                        printf("Section is %s\n", token);
+                        state = 1;
+                        subState=0;
+                        break;
+                    }
+                    if (strncmp(token, "Edges", 2) == 0) {
+//                        printf("Section is %s\n", token);
+                        state = 2;
+                        subState=0;
+                        break;
+                    }
+                    if (strncmp(token, "Operator", 2) == 0) {
+//                        printf("Section is %s\n", token);
+                        state = 3;
+                        subState=0;
+                        break;
+                    }
+                    if (state == 1 && subState==0 ) {
+//                        printf("Node is %s\n", token);
+                        break;
+                    }
+
+                    if (state == 2 && subState == 0) {
+                        //                            Source
+//                        printf("Source is %s\n", token);
+                        source=(int *)token;
+                        subState = 1;
+                    }else if (state == 2 && subState == 1) {
+                        //                            Target
+//                        printf("Target is %s\n", token);
+                        target =(int *)token;
+                        subState = 2;
+                    }else if (state == 2 && subState == 2) {
+                        //                            Value
+//                        printf("Value is %s\n", token);
+                        value=(int *)token;
+                        edges.push_back(edge{source,target,value});
+                        subState = 0;
+                        break;
+                    }
+                    if (state == 3 && subState == 0) {
+//                        printf("Airline is %s\n", token);
+                        break;
+                    }
+                }
+            }
+            fclose(file);
+            / Maxmum label value of vertices in the given graph, assume 1000
+            int64_t N = 15;
+
+            // construct graph
+            Graph graph(edges, N);
+
+            // print adjacency list representation of graph
+            printGraph(graph);
+
+            //Source vertex as first non empty vertex in adjacency List
+            int64_t source;
+            for(int64_t i = 0; i<nonEmptyIndices.size(); i++) {
+                if (nonEmptyIndices[i]) {
+                    source = i;
+                    break;
+                }
+            }
+
+            //printf("source:%d\n", source);
+
+            //printf("Before Prim\n");
+            //fflush( stdout );
+            primMST(graph, N, source);
+            //printf("After Prim\n");
+            //fflush( stdout );
+
+            std::set<fromTo>::iterator it; //set iterator
+            //printf("T size:%d\n", T.size());
+            //printf("MST in iterator\n");
+            for (it=T.begin(); it!=T.end(); ++it) {
+                fromTo e = *it;
+                printf("%d - %d\n", e.from, e.to);
+            }
+
+            return 0;
+        }
+
+    }
+
+    closedir(dr);
+
 } 
 
 //Reference: https://www.geeksforgeeks.org/prims-mst-for-adjacency-list-representation-greedy-algo-6/
