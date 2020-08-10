@@ -8,7 +8,7 @@
 #include <list>
 #include <iterator>
 #include <algorithm>
-
+#include <stdint.h>
 
 #define ARRAY_SIZE 15
 //#define ARRAY_BYTES (15 * 15 * sizeof(int));
