@@ -1,4 +1,3 @@
-%%cu
 // C / C++ program for Prim's MST for adjacency list representation of graph 
 
 
@@ -66,7 +65,9 @@ __device__ __managed__ int Q[ARRAY_SIZE], R[ARRAY_SIZE]; //set of vertices initi
 //__device__ __managed__ std::set<int> R, Q;
 __device__ __managed__ fromTo T[ARRAY_SIZE*ARRAY_SIZE]; //{ set of edges } initially {};
 __device__ __managed__ fromTo mwe[ARRAY_SIZE*ARRAY_SIZE]; //set of edges; minimum weight edges for all vertices
-__device__ __managed__ int z_device, Q_index, R_index; 
+__device__ __managed__ int z_device, Q_index=0, R_index=0, mwe_index=0, T_index=0; //Indices to synchronize between host & device
+__device__ __managed__ int edge_cnt=0; //keeps track of #edges
+
 
 // class to represent a graph object
 class Graph
@@ -131,25 +132,17 @@ void printGraph(Graph const &graph)
 
 //Delete element from array
 template<typename T>
-void deleteElement(T arr[], int n, int x) 
-{ 
-   // Search x in array 
-   int i; 
-   for (i=0; i<n; i++) 
-      if (arr[i] == x) 
-         break; 
-  
-   // If x found in array 
-   if (i < n) 
+void deleteElement(T arr[], int arr_index, int size) 
+{
+
+   if (arr_index < size) 
    { 
      // reduce size of array and move all 
      // elements on space ahead 
-     n = n - 1; 
-     for (int j=i; j<n; j++) 
+     size = size - 1; 
+     for (int j=arr_index; j<size; j++) 
         arr[j] = arr[j+1]; 
-   } 
-  
-   //return n; 
+   }
 } 
 
 template<typename T>
@@ -162,7 +155,7 @@ __device__ bool ifExist(T arr[], T val){
 }
 
 __device__ bool ifExistMWE(fromTo arr[], fromTo ft){
-		for (int i=0; i<ARRAY_SIZE*ARRAY_SIZE; i++) {
+		for (int i=0; i<edge_cnt; i++) {
 				if (arr[i].from == ft.from && arr[i].to == ft.to)
 					return true;
 		}
@@ -171,7 +164,10 @@ __device__ bool ifExistMWE(fromTo arr[], fromTo ft){
 
 template<typename T>
 int getIndex(T arr[]){
-		return sizeof(arr)/sizeof(arr[0]);
+		printf("sizeof(arr):%d\n", sizeof(arr));
+		printf("sizeof(T):%d\n", sizeof(T));
+		printf("sizeof(arr)/sizeof(arr[0]):%d\n", sizeof(arr)/sizeof(arr[0]));
+		return sizeof(arr)/sizeof(T);
 }
 
 //Identifies all minimum weight edges for all vertices
@@ -192,7 +188,9 @@ void initMWE(Graph const &graph)
 				prevWeight = adj.weight;
 			}
 		} 
-		mwe[getIndex(mwe)] = fromTo{minFrom, min_to};
+		//printf("minFrom:%d, min_to:%d\n", minFrom, min_to);
+		mwe[mwe_index] = fromTo{minFrom, min_to};
+		mwe_index++;
 	}
 } 
 
@@ -216,7 +214,7 @@ int getWeight(Graph const &graph, int u, int v) {
 // 	int *allweight_devicein, int z_device, int k_device) 
 // { 
 // 	int weight;
-// 	for(int i=0; i<ARRAY_SIZE*ARRAY_SIZE; i++) {
+// 	for(int i=0; i<edge_cnt; i++) {
 // 		if (allvertex_devicein[i] == z_device && alledge_devicein[i] == k_device) {
 // 			weight = allweight_devicein[i];
 // 		}
@@ -238,44 +236,68 @@ int getWeight(Graph const &graph, int u, int v) {
  
 //Kernel to process edges in Parallel
 __global__ void parallel_processEdge(int *allvertex_devicein, int *alledge_devicein, 
-	int *allweight_devicein, int z_device, int R_index, int Q_index, int T_index)
+	int *allweight_devicein, int z_device)
+//, int R_index, int Q_index, int T_index)
 {
  
     int myId = threadIdx.x + blockDim.x * blockIdx.x;
-    printf("myId: %d", myId); 
+	   // int tid  = threadIdx.x;
+
+    //printf("block:%d, myId: %d\n", blockIdx.x, myId); 
+	
     // stride is the total number of threads in the grid
     // Using stride increases the performance and benefits with scalability & thread reusage
-    int stride = blockDim.x * gridDim.x;
+    //int stride = blockDim.x * gridDim.x;
     
     // do counts in global mem
-    while (allvertex_devicein[myId] == z_device)
-    {
-			int k_device = alledge_devicein[myId];
-			int w_device = allweight_devicein[myId];
-        if (!fixed[k_device]) {
-					if (ifExistMWE(mwe, fromTo{z_device, k_device})) {
-						fixed[k_device] = true;
-						T[T_index + myId] = fromTo{k_device, z_device}; // z is the parent of k
-						R[R_index + myId - 1] = k_device;
-					}
-					else if (dist[k_device] > w_device) {
-						dist[k_device] = w_device;
-						parent[k_device] = z_device;
+		//for(int i = 0; i<edge_cnt; i++){
+		if (myId < edge_cnt) {
+			if (allvertex_devicein[myId] == z_device)
+			{
+					printf("allvertex_devicein[myId] :%d\n", allvertex_devicein[myId]);
+				int k_device = alledge_devicein[myId];
+				printf("k_device: %d\n", k_device);
+				int w_device = allweight_devicein[myId];
+				printf("w_device: %d\n", w_device);
 
-						if (!ifExist(Q, k_device)) {
-							Q[Q_index+ myId - 1] = k_device;
-						//if (Q.find(k_device) == Q.end()) {
-						//	Q.insert(k_device);
+					if (!fixed[k_device]) {
+						if (ifExistMWE(mwe, fromTo{z_device, k_device})) {
+							printf("In MWE and not fixed k, z:%d, k:%d\n", z_device, k_device);
+							fixed[k_device] = true;
+							
+							int t = atomicAdd(&T_index, 1);
+							T[t] = fromTo{k_device, z_device}; // z is the parent of k
+							
+							int r = atomicAdd(&R_index, 1);
+							R[r] = k_device;
+							printf("R_index in kernel:%d\n", R_index);
 						}
-					}
-					//processEdge1(allvertex_devicein, alledge_devicein, allweight_devicein, z_device, k_device);
+						else if (dist[k_device] > w_device) {
+								printf("not minimum edge and not fixed k, z:%d, k:%d\n", z_device, k_device);
+								printf("\n");
+							dist[k_device] = w_device;
+							parent[k_device] = z_device;
+
+							if (!ifExist(Q, k_device)) {
+								int q = atomicAdd(&Q_index, 1);
+								Q[q] = k_device;
+							//if (Q.find(k_device) == Q.end()) {
+							//	Q.insert(k_device);
+							}
+						}
+						//processEdge1(allvertex_devicein, alledge_devicein, allweight_devicein, z_device, k_device);
+			}
+					__syncthreads();        // make sure all adds at one stage are done!
+			}
 		}
-        __syncthreads();        // make sure all adds at one stage are done!
-    }
 }
 
 //Kernel Setup
 void kernel_setup(Graph const &graph, int z_device){
+	
+	int threads = 8;
+	    int blocks = ceil(float(ARRAY_SIZE) / float(threads));
+
 	
 	const int ARRAY_BYTES = ARRAY_SIZE * ARRAY_SIZE * sizeof(int);
 	printf("array bytes:%f\n", ARRAY_BYTES);
@@ -285,19 +307,19 @@ void kernel_setup(Graph const &graph, int z_device){
 	//atmost a node can connect to all other nodes
 	int allvertex_in[ARRAY_SIZE*ARRAY_SIZE], alledge_in[ARRAY_SIZE*ARRAY_SIZE], allweight_in[ARRAY_SIZE*ARRAY_SIZE];
 	
-	int j = 0;
+	
 	for (int i = 0; i < graph.adjList.size(); i++) {
 		for(edge adj : graph.adjList[i]) {
-			allvertex_in[j] = adj.from;
-			alledge_in[j] = adj.to;
-			allweight_in[j] = adj.weight;
-			j++;
+			allvertex_in[edge_cnt] = adj.from;
+			alledge_in[edge_cnt] = adj.to;
+			allweight_in[edge_cnt] = adj.weight;
+			edge_cnt++;
 		}
 	}
 
-	for (int i = 0; i <ARRAY_SIZE*ARRAY_SIZE; i++) {
-		printf("allvertex_in:%d, alledge_in:%d, allweight_in:%d\n", allvertex_in[i], alledge_in[i], allweight_in[i]);
-	}
+	//for (int i = 0; i <edge_cnt; i++) {
+	//	printf("allvertex_in:%d, alledge_in:%d, allweight_in:%d\n", allvertex_in[i], alledge_in[i], allweight_in[i]);
+	//}
 
 	// declare GPU memory pointers
     int * allvertex_devicein, * alledge_devicein, * allweight_devicein;
@@ -320,8 +342,17 @@ void kernel_setup(Graph const &graph, int z_device){
 	printf("Running global reduce\n");
     cudaEventRecord(start, 0);
 	
-	parallel_processEdge<<<1, 8>>>
-						(allvertex_devicein, alledge_devicein, allweight_devicein, z_device, getIndex(R), getIndex(Q), getIndex(T));
+	parallel_processEdge<<<blocks, threads>>>
+						(allvertex_devicein, alledge_devicein, allweight_devicein, z_device);
+						//, R_index, Q_index, T_index);
+	gpuErrchk( cudaPeekAtLastError() );
+  gpuErrchk( cudaDeviceSynchronize() );
+
+	// Increment index pointers
+	//R_index = R_index + threads + 1;
+	//Q_index = Q_index + threads + 1;
+	//T_index = T_index + threads + 1;
+
 	gpuErrchk( cudaPeekAtLastError() );
   gpuErrchk( cudaDeviceSynchronize() );
 
@@ -354,6 +385,8 @@ fromTo* primMST(Graph const &graph, int N, int source)
 { 
 	std::set<int>::iterator it; //set iterator 
 	
+	printf("In PRIM\n");
+	fflush( stdout );
 
 	// Initialize min heap with all vertices. dist value of 
 	// all vertices (except 0th vertex) is initially infinite 
@@ -377,26 +410,29 @@ fromTo* primMST(Graph const &graph, int N, int source)
 		distNode d = H.top();
 		H.pop();
 		int j = d.node; //pop the minimum distance vertex
+		printf("Pop min distance node:%d\n", j);
 		if (!fixed[j]) {
-			R[getIndex(R)] = j;
+			R[R_index] = j;
+			R_index++;
 			fixed[j] = true;
 			if (parent[j] != -1) {
-				T[getIndex(T)] = fromTo{j, parent[j]};
+				T[T_index] = fromTo{j, parent[j]};
+				T_index++;
 			}
 
 			
-			while (getIndex(R) != 0){
-					//if(R.find(2) != R.end()) {
-						printf("true\n");
-					//}
+			while (R_index != 0){
 					// call processEdge for all neighbors of vertex in R 
+					printf("R_index: %d\n", R_index);
 					z_device = R[0];
-					deleteElement(R, getIndex(R), z_device);
+					deleteElement(R, 0, ARRAY_SIZE);
+					R_index--;
 					//allocate pointers copy required inputs to device
 					//int *z_device;
 					//cudaMemcpy(fixed_device, fixed, ARRAY_BYTES, cudaMemcpyHostToDevice);
 					//cudaMemcpy(z_device, z, sizeof(int), cudaMemcpyHostToDevice);
 					//call kernel setup
+					
 					kernel_setup(graph, z_device);
 					
 
@@ -411,10 +447,12 @@ fromTo* primMST(Graph const &graph, int N, int source)
 				//}
 			}	
 			
-			while (getIndex(Q) != 0) {
-				for (int i = 0; i < getIndex(Q); i++) {
+			while (Q_index != 0) {
+				for (int i = 0; i < Q_index; i++) {
 					int z = Q[i];
-					deleteElement(Q, getIndex(Q), z);
+					printf("z in Q:%d\n", z);
+					deleteElement(Q, i, ARRAY_SIZE);
+					Q_index--;
 					if (!fixed[z]) {
 						H.push(distNode{z, dist[z]});
 					}
@@ -422,7 +460,7 @@ fromTo* primMST(Graph const &graph, int N, int source)
 			}
 		}
 	}
-	if (getIndex(T) == graph.adjList.size() -1) {
+	if (T_index == graph.adjList.size() -1) {
 		return T;
 	} else 
 		return new fromTo[ARRAY_SIZE]; // return empty tree
@@ -502,16 +540,16 @@ int main()
 	printf("source:%d\n", source);
 	
   printf("Before Prim\n");
-  //fflush( stdout );
+  fflush( stdout );
+
+	primMST(graph, ARRAY_SIZE, source);
 	
-  primMST(graph, ARRAY_SIZE, source); 
-
   printf("After Prim\n");
-  //fflush( stdout );
+  fflush( stdout );
 
-	printf("T size:%d\n", getIndex(T));
+	printf("T size:%d\n", T_index);
 	printf("MST in iterator\n");
-	for (int i =0; i<getIndex(T); i++) {
+	for (int i =0; i<T_index; i++) {
 		fromTo e = T[i]; 
 		printf("%d - %d\n", e.from, e.to); 
 	}
