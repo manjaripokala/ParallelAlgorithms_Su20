@@ -1,11 +1,14 @@
-
-#include <stdio.h> 
+#include <stdio.h>
 #include <queue>
 #include <set>
 #include <list>
 #include <iterator>
 #include <algorithm>
-
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dirent.h>
+#include <limits.h>       //For PATH_MAX
 // Structure to represent a vertex and its distance
 struct distNode { 
 	int node; 
@@ -166,7 +169,7 @@ std::set<fromTo> primMST(Graph const &graph, int N, int source)
 
 	// Initialize min heap with all vertices. dist value of 
 	// all vertices (except 0th vertex) is initially infinite 
- 
+//    printf("primMST\n");
 	for(int i = 0; i < N; i ++) {
 		parent.push_back(-1);
 		dist.push_back(INT_MAX);
@@ -221,7 +224,13 @@ std::set<fromTo> primMST(Graph const &graph, int N, int source)
 	} else 
 		return std::set<fromTo>{}; // return empty tree
 
-} 
+}
+
+const char *get_filename_ext(const char *filename) {
+    const char *dot = strrchr(filename, '.');
+    if (!dot || dot == filename) return "";
+    return dot + 1;
+}
 
 // Driver program to test above functions 
 int main() 
@@ -259,29 +268,33 @@ int main()
     while ((de = readdir(dr)) != NULL) {
         char filePath[PATH_MAX + 1];
         if (strncmp(get_filename_ext(de->d_name), "csv", 2) == 0) {
+//            printf("%s\n", de->d_name);
             realpath(de->d_name, filePath);
             printf("%s\n", filePath);
             char const *const fileName = filePath;
             FILE *file = fopen(fileName, "r"); /* should check the result */
-            printf("%s\n", "file opened");
+//            printf("%s\n", "file opened");
             char line[4000];
 
             int state = 0;
             int subState = 0;
+            int node_count=0;
+
             while (fgets(line, sizeof(line), file)) {
                 char *token;
                 char *rest = line;
-                int *source;
-                int *target;
-                int *value;
+                int source;
+                int target;
+                int value;
+
 //                printf("%s\n", "Next line:::");
                 while ((token = strtok_r(rest, "|\n", &rest))) {
 //                    printf("%s\n", token);
                     if (strncmp(token, "Nodes", 2) == 0) {
-//                        printf("Section is %s\n", token);
-                        state = 1;
-                        subState=0;
-                        break;
+//                       printf("Section is %s\n", token);
+                       state = 1;
+                       subState=0;
+                       break;
                     }
                     if (strncmp(token, "Edges", 2) == 0) {
 //                        printf("Section is %s\n", token);
@@ -297,23 +310,24 @@ int main()
                     }
                     if (state == 1 && subState==0 ) {
 //                        printf("Node is %s\n", token);
+                        node_count=node_count+ 1;
                         break;
                     }
 
                     if (state == 2 && subState == 0) {
                         //                            Source
 //                        printf("Source is %s\n", token);
-                        source=(int *)token;
+                        source=atoi( token);
                         subState = 1;
                     }else if (state == 2 && subState == 1) {
                         //                            Target
 //                        printf("Target is %s\n", token);
-                        target =(int *)token;
+                        target =atoi( token);
                         subState = 2;
                     }else if (state == 2 && subState == 2) {
                         //                            Value
 //                        printf("Value is %s\n", token);
-                        value=(int *)token;
+                        value=(int)atoi( token);
                         edges.push_back(edge{source,target,value});
                         subState = 0;
                         break;
@@ -324,18 +338,22 @@ int main()
                     }
                 }
             }
+//            printf("close file\n");
             fclose(file);
-            / Maxmum label value of vertices in the given graph, assume 1000
-            int N = 15;
-
+//            printf("done with file\n");
+            // Maxmum label value of vertices in the given graph, assume 1000
+            int N = node_count;
+            printf("%i count of nodes\n", node_count);
             // construct graph
             Graph graph(edges, N);
+//            printf("created graph\n");
 
             // print adjacency list representation of graph
             printGraph(graph);
+//            printf("print graph\n");
 
-			//Source vertex as first non empty vertex in adjacency List
-			//Or modify this to take from input file
+//			//Source vertex as first non empty vertex in adjacency List
+//			//Or modify this to take from input file
             int source;
             for(int i = 0; i<nonEmptyIndices.size(); i++) {
                 if (nonEmptyIndices[i]) {
@@ -344,20 +362,29 @@ int main()
                 }
             }
 
-            //printf("source:%d\n", source);
+            printf("source:%d\n", source);
 
-            //printf("Before Prim\n");
-            //fflush( stdout );
+            printf("Before Prim\n");
+//            flush( stdout );
             primMST(graph, N, source);
-            //printf("After Prim\n");
-            //fflush( stdout );
+            printf("After Prim\n");
+//            fflush( stdout );
 
             std::set<fromTo>::iterator it; //set iterator
-            //printf("T size:%d\n", T.size());
-            //printf("MST in iterator\n");
+//            printf("T size:%d\n", T.size());
+            printf("MST in iterator\n");
+            FILE *mst;
+            char output[10], filename2[50],extension[5];
+
+            strcpy(output,  "output_");
+            strcpy(filename2, strtok(de->d_name, "."));
+            strcpy(extension, ".txt");
+            strcat(output, filename2);
+            strcat(output, extension);
+            mst = fopen(output, "w");
             for (it=T.begin(); it!=T.end(); ++it) {
                 fromTo e = *it;
-                printf("%d - %d\n", e.from, e.to);
+                fprintf(mst,"%d - %d\n", e.from, e.to);
             }
 
             return 0;
