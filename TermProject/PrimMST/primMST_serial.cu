@@ -1,6 +1,3 @@
-%%cu
-// C / C++ program for Prim's MST for adjacency list representation of graph 
-
 
 #include <stdio.h> 
 #include <queue>
@@ -11,8 +8,8 @@
 
 // Structure to represent a vertex and its distance
 struct distNode { 
-	int64_t node; 
-	int64_t dist; 
+	int node; 
+	int dist; 
   bool operator<(const distNode& rhs) const
     {
         return dist > rhs.dist || (dist == rhs.dist && node > rhs.node);;
@@ -21,9 +18,9 @@ struct distNode {
 
 // Structure to represent an edge
 struct edge { 
-	int64_t from; 
-	int64_t to; 
- 	int64_t weight;
+	int from; 
+	int to; 
+ 	int weight;
    	bool operator<(const edge& rhs) const
      {
          return weight > rhs.weight || (weight == rhs.weight && to > rhs.to);
@@ -32,8 +29,8 @@ struct edge {
 
 // Structure to represent a edge source & destination
 struct fromTo { 
-	int64_t from; 
-	int64_t to; 
+	int from; 
+	int to; 
    	bool operator<(const fromTo& rhs) const
      {
          return to < rhs.to || (to == rhs.to && from < rhs.from);
@@ -42,13 +39,13 @@ struct fromTo {
 
 
 // Initialize global variables
-std::vector<int64_t> parent; // Vector to store parent nodes
-std::vector<int64_t> dist; // dist values used to pick minimum weight edge in cut 
+std::vector<int> parent; // Vector to store parent nodes
+std::vector<int> dist; // dist values used to pick minimum weight edge in cut 
 std::vector<bool> fixed; // Vector to store flags for node traversal
 std::vector<bool> nonEmptyIndices; // Vector to store non empty indices of vertices
 
 std::priority_queue<distNode> H; //binary heap of (j,dist) initially empty;
-std::set<int64_t> Q, R; //set of vertices initially empty;
+std::set<int> Q, R; //set of vertices initially empty;
 std::set<fromTo> T; //{ set of edges } initially {};
 std::set<fromTo> mwe; //set of edges; minimum weight edges for all vertices
 
@@ -60,7 +57,7 @@ public:
 	std::vector<std::vector<edge>> adjList;
 
 	// Graph Constructor
-	Graph(std::vector<edge> const &edges, int64_t N)
+	Graph(std::vector<edge> const &edges, int N)
 	{
 		// resize the vector to hold upto vertex of maximum label value (elements of type vector<edge>)
 		adjList.resize(N);
@@ -69,9 +66,9 @@ public:
 		// add edges to the undirected graph
 		for (auto &e: edges)
 		{
-			int64_t from = e.from;
-			int64_t to = e.to;
-			int64_t weight = e.weight;
+			int from = e.from;
+			int to = e.to;
+			int weight = e.weight;
 
 			// insert at the end
 			adjList[from].push_back(edge{from, to, weight});
@@ -85,18 +82,10 @@ public:
 };
 
 
-// // A utility function to add an edge in an 
-// // undirected graph. 
-// void addEdge(std::vector<edge> adj[], int64_t u, int64_t v) 
-// { 
-//     adj[u].push_back(edge{u,v}); 
-//     adj[v].push_back(edge{v,u}); 
-// } 
-
 // print adjacency list representation of graph
 void printGraph(Graph const &graph)
 {
-	for (int64_t i = 0; i < graph.adjList.size(); i++)
+	for (int i = 0; i < graph.adjList.size(); i++)
 	{
 		// print all neighboring vertices of given vertex
 		for (edge v : graph.adjList[i]){
@@ -109,12 +98,11 @@ void printGraph(Graph const &graph)
 //Identifies all minimum weight edges for all vertices
 void initMWE(Graph const &graph) 
 { 
-	for (int64_t i = 0; i < graph.adjList.size(); i++) {
+	for (int i = 0; i < graph.adjList.size(); i++) {
 		// Extract the vertex with minimum dist value 
-		int64_t prevWeight=INT_MAX;
-		int64_t min_to, minFrom;
+		int prevWeight=INT_MAX;
+		int min_to, minFrom;
 		// Iterate through all the vertices of graph 
-		//for (edge adj : graph.adjList[i]) {
 		for (auto it=graph.adjList[i].begin(); it!=graph.adjList[i].end(); it++) {
 			edge adj = *it;
 			// Get the Minimum weight edge for vertex adj.from
@@ -129,8 +117,8 @@ void initMWE(Graph const &graph)
 } 
 
 // Get Weight for an edge
-int64_t getWeight(Graph const &graph, int64_t u, int64_t v) {
-	int64_t weight;
+int getWeight(Graph const &graph, int u, int v) {
+	int weight;
 	// Iterate through all adjacent vertices of u and extract weight of u to v edge
 	for (edge adj : graph.adjList[u]) {
 		// Get the Minimum weight edge for vertex v.from
@@ -142,9 +130,9 @@ int64_t getWeight(Graph const &graph, int64_t u, int64_t v) {
 }
 
 // Process Edge in Parallel
-void processEdge1(Graph const &graph, int64_t z, int64_t k) 
+void processEdge1(Graph const &graph, int z, int k) 
 { 
-	int64_t weight = getWeight(graph, z, k);
+	int weight = getWeight(graph, z, k);
 	if (mwe.find(fromTo{z, k}) != mwe.end()) {
 		fixed[k] = true;
 		T.insert(fromTo{k, z}); // z is the parent of k
@@ -171,9 +159,9 @@ void printMST(std::set<fromTo> T)
 
 // The main function that constructs Minimum Spanning Tree (MST) 
 // using Prim's Parallel algorithm 
-std::set<fromTo> primMST(Graph const &graph, int64_t N, int64_t source) 
+std::set<fromTo> primMST(Graph const &graph, int N, int source) 
 { 
-	std::set<int64_t>::iterator it; //set iterator 
+	std::set<int>::iterator it; //set iterator 
 	
 
 	// Initialize min heap with all vertices. dist value of 
@@ -191,13 +179,12 @@ std::set<fromTo> primMST(Graph const &graph, int64_t N, int64_t source)
 
 	initMWE(graph); //initialize minimum weight edges of given graph;
 
-	// Loop for |V| - 1 iterations
-	//while (!H.empty()) { 
-	for (int64_t i = 0; i < graph.adjList.size(); i++) {
+	// Loop for |V| - 1 iterations (our priority queue doesn't support decreaseKey so there will be duplicates in Heap H)
+	for (int i = 0; i < graph.adjList.size(); i++) {
 		// Extract the vertex with minimum dist value 
 		distNode d = H.top();
 		H.pop();
-		int64_t j = d.node; //pop the minimum distance vertex
+		int j = d.node; //pop the minimum distance vertex
 		if (!fixed[j]) {
 			R.insert(j);
 			fixed[j] = true;
@@ -205,16 +192,13 @@ std::set<fromTo> primMST(Graph const &graph, int64_t N, int64_t source)
 				T.insert(fromTo{j, parent[j]});
 			}
 
-			int64_t z;
+			int z;
 			while (!R.empty()) {
-					//if(R.find(2) != R.end()) {
-						//printf("true\n");
-					//}
 					// call processEdge for all neighbors of vertex in R 
 					z = *R.begin();
 					R.erase(R.find(z));
 				for (edge adj : graph.adjList[z]) {
-					int64_t k = adj.to; 
+					int k = adj.to; 
 					if (!fixed[k]) {
 						processEdge1(graph, z, k);							 
 					}
@@ -223,7 +207,7 @@ std::set<fromTo> primMST(Graph const &graph, int64_t N, int64_t source)
 			
 			while (!Q.empty()) {
 				for (it=Q.begin(); it!=Q.end(); ++it) {
-					int64_t z = *it;
+					int z = *it;
 					Q.erase(it);
 					if (!fixed[z]) {
 						H.push(distNode{z, dist[z]});
@@ -242,9 +226,7 @@ std::set<fromTo> primMST(Graph const &graph, int64_t N, int64_t source)
 // Driver program to test above functions 
 int main() 
 { 
-	// vector of graph edges as per above diagram.
-	// Please note that initialization vector in below format will
-	// work fine in C++11, C++14, C++17 but will fail in C++98.
+	// vector of graph edges
 	std::vector<edge> edges;
 //	edges.push_back(edge{4,5,4});
 //	edges.push_back(edge{4,11,8});
@@ -344,7 +326,7 @@ int main()
             }
             fclose(file);
             / Maxmum label value of vertices in the given graph, assume 1000
-            int64_t N = 15;
+            int N = 15;
 
             // construct graph
             Graph graph(edges, N);
@@ -352,9 +334,10 @@ int main()
             // print adjacency list representation of graph
             printGraph(graph);
 
-            //Source vertex as first non empty vertex in adjacency List
-            int64_t source;
-            for(int64_t i = 0; i<nonEmptyIndices.size(); i++) {
+			//Source vertex as first non empty vertex in adjacency List
+			//Or modify this to take from input file
+            int source;
+            for(int i = 0; i<nonEmptyIndices.size(); i++) {
                 if (nonEmptyIndices[i]) {
                     source = i;
                     break;
