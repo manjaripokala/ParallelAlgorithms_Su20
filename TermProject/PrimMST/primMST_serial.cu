@@ -33,13 +33,12 @@ struct edge {
 // Structure to represent a edge source & destination
 struct fromTo { 
 	int from; 
-	int to; 
+	int to;
    	bool operator<(const fromTo& rhs) const
      {
          return to < rhs.to || (to == rhs.to && from < rhs.from);
      }
 };
-
 
 // Initialize global variables
 std::vector<int> parent; // Vector to store parent nodes
@@ -83,7 +82,6 @@ public:
 		}
 	}
 };
-
 
 // print adjacency list representation of graph
 void printGraph(Graph const &graph)
@@ -134,7 +132,8 @@ int getWeight(Graph const &graph, int u, int v) {
 
 // Process Edge in Parallel
 void processEdge1(Graph const &graph, int z, int k) 
-{ 
+{
+    printf("Process Edge from %i, to %i\n", z, k);
 	int weight = getWeight(graph, z, k);
 	if (mwe.find(fromTo{z, k}) != mwe.end()) {
 		fixed[k] = true;
@@ -163,10 +162,7 @@ void printMST(std::set<fromTo> T)
 // The main function that constructs Minimum Spanning Tree (MST) 
 // using Prim's Parallel algorithm 
 std::set<fromTo> primMST(Graph const &graph, int N, int source) 
-{ 
-	std::set<int>::iterator it; //set iterator 
-	
-
+{
 	// Initialize min heap with all vertices. dist value of 
 	// all vertices (except 0th vertex) is initially infinite 
 //    printf("primMST\n");
@@ -181,44 +177,65 @@ std::set<fromTo> primMST(Graph const &graph, int N, int source)
 	H.push(distNode{source, dist[0]});
 
 	initMWE(graph); //initialize minimum weight edges of given graph;
-
+//    printf("adj list size is %d\n", graph.adjList.size());
 	// Loop for |V| - 1 iterations (our priority queue doesn't support decreaseKey so there will be duplicates in Heap H)
-	for (int i = 0; i < graph.adjList.size(); i++) {
-		// Extract the vertex with minimum dist value 
-		distNode d = H.top();
-		H.pop();
-		int j = d.node; //pop the minimum distance vertex
-		if (!fixed[j]) {
-			R.insert(j);
-			fixed[j] = true;
-			if (parent[j] != -1) {
-				T.insert(fromTo{j, parent[j]});
-			}
 
-			int z;
-			while (!R.empty()) {
-					// call processEdge for all neighbors of vertex in R 
-					z = *R.begin();
-					R.erase(R.find(z));
-				for (edge adj : graph.adjList[z]) {
-					int k = adj.to; 
-					if (!fixed[k]) {
-						processEdge1(graph, z, k);							 
-					}
-				}
-			}	
-			
-			while (!Q.empty()) {
-				for (it=Q.begin(); it!=Q.end(); ++it) {
-					int z = *it;
-					Q.erase(it);
-					if (!fixed[z]) {
-						H.push(distNode{z, dist[z]});
-					}
-				}
-			}
-		}
+	while (!H.empty())
+    {
+//	    printf("loop here\n");
+//
+
+//	for (int i = 0; i < graph.adjList.size(); i++) {
+//        printf("i = %i\n", i);
+		// Extract the vertex with minimum dist value
+        distNode d = H.top();
+		int j = d.node; //pop the minimum distance vertex
+        printf("Node is %i\n", j);
+		if (!fixed[j]) {
+            R.insert(j);
+            fixed[j] = true;
+            if (parent[j] != -1) {
+//                printf("Parent is not null %i\n", parent[j]);
+                T.insert(fromTo{j, parent[j]});
+            }
+
+            int z;
+            while (!R.empty()) {
+                // call processEdge for all neighbors of vertex in R
+                z = *R.begin();
+                R.erase(R.find(z));
+                for (edge adj : graph.adjList[z]) {
+                    int k = adj.to;
+                    if (!fixed[k]) {
+                        processEdge1(graph, z, k);
+                    }
+                }
+            }
+//            printf("processing of edges is done\n");
+            while (!Q.empty()) {
+                printf("Q is not empty\n");
+                std::set<int>::iterator it; //set iterator
+                for (it = Q.begin(); it != Q.end(); ++it) {
+//				    printf("it is %i Q is %i\n",*it, *Q.end());
+//                    int z =0;
+                    z = *it;
+//                    printf("it is %i Q is %i\n",z, *Q.end());
+
+                    Q.erase(it);
+                    printf("Q erased it\n");
+                    if (!fixed[z]) {
+                        printf("Z is not fixed\n");
+                        H.push(distNode{z, dist[z]});
+                        printf("Z is %i\n", z);
+                        printf("Z dist is %i\n", dist[z]);
+                    }
+                }
+            }
+            printf("Q is empty\n");
+        }
+        H.pop();
 	}
+//    printf("T size is %i\n",T.size() );
 	if (T.size() == graph.adjList.size() -1) {
 		return T;
 	} else 
@@ -261,10 +278,6 @@ int main()
         printf("Could not open current directory\n");
         return 0;
     }
-
-    // Refer http://pubs.opengroup.org/onlinepubs/7990989775/xsh/readdir.html
-    // for readdir()
-
     while ((de = readdir(dr)) != NULL) {
         char filePath[PATH_MAX + 1];
         if (strncmp(get_filename_ext(de->d_name), "csv", 2) == 0) {
@@ -279,7 +292,7 @@ int main()
             int state = 0;
             int subState = 0;
             int node_count=0;
-
+            int edge_count=0;
             while (fgets(line, sizeof(line), file)) {
                 char *token;
                 char *rest = line;
@@ -330,6 +343,7 @@ int main()
                         value=(int)atoi( token);
                         edges.push_back(edge{source,target,value});
                         subState = 0;
+                        edge_count = edge_count+1;
                         break;
                     }
                     if (state == 3 && subState == 0) {
@@ -338,19 +352,19 @@ int main()
                     }
                 }
             }
-//            printf("close file\n");
+            printf("close file\n");
             fclose(file);
-//            printf("done with file\n");
+            printf("done with file\n");
             // Maxmum label value of vertices in the given graph, assume 1000
-            int N = node_count;
+            int N =node_count;
             printf("%i count of nodes\n", node_count);
             // construct graph
             Graph graph(edges, N);
 //            printf("created graph\n");
 
             // print adjacency list representation of graph
-            printGraph(graph);
-//            printf("print graph\n");
+//            printGraph(graph);
+            printf("print graph\n");
 
 //			//Source vertex as first non empty vertex in adjacency List
 //			//Or modify this to take from input file
@@ -372,9 +386,9 @@ int main()
 
             std::set<fromTo>::iterator it; //set iterator
 //            printf("T size:%d\n", T.size());
-            printf("MST in iterator\n");
+            printf("Done\n");
             FILE *mst;
-            char output[10], filename2[50],extension[5];
+            char output[10], filename2[200],extension[5];
 
             strcpy(output,  "output_");
             strcpy(filename2, strtok(de->d_name, "."));
@@ -383,17 +397,13 @@ int main()
             strcat(output, extension);
             mst = fopen(output, "w");
             for (it=T.begin(); it!=T.end(); ++it) {
-                fromTo e = *it;
+                fromTo e =  *it;
                 fprintf(mst,"%d - %d\n", e.from, e.to);
             }
-
             return 0;
         }
-
     }
-
     closedir(dr);
-
 } 
 
 //Reference: https://www.geeksforgeeks.org/prims-mst-for-adjacency-list-representation-greedy-algo-6/
