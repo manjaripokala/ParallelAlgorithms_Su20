@@ -531,6 +531,7 @@ int main() {
             primMST(graph, NODE_ARRAY_SIZE, source);
 
             printf("After Prim\n");
+            fflush(stdout);
 //            printf("MST in iterator\n");
             FILE *mst;
             char output[15], filename2[50],extension[5];

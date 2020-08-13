@@ -377,7 +377,7 @@ int main()
             fclose(file);
 //            printf("done with file\n");
             // Maxmum label value of vertices in the given graph, assume 1000
-            int N = 15;
+            int N = 13;
             printf("%i count of nodes\n", node_count);
             // construct graph
             Graph graph(edges, N);
@@ -406,7 +406,7 @@ int main()
 //            fflush( stdout );
 
             std::set<fromTo>::iterator it; //set iterator
-//            printf("T size:%d\n", T.size());
+            printf("T size:%d\n", T.size());
             printf("MST in iterator\n");
             FILE *mst;
             char output[10], filename2[50],extension[5];
