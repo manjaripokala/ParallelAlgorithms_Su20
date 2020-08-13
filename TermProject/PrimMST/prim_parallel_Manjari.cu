@@ -5,10 +5,9 @@
 #include <list>
 #include <iterator>
 #include <algorithm>
-#include <time.h>
 
-#define ARRAY_SIZE 200
-#define EDGE_SIZE 12000
+
+#define ARRAY_SIZE 12000
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
@@ -60,13 +59,13 @@ std::vector<bool> nonEmptyIndices; // Array to store non empty indices of vertic
 
 std::priority_queue<distNode> H; //binary heap of (j,dist) initially empty;
 __device__ __managed__ int Q[ARRAY_SIZE], R[ARRAY_SIZE]; //set of vertices initially empty;
-__device__ __managed__ fromTo T[EDGE_SIZE]; //{ set of edges } initially {};
-__device__ __managed__ fromTo mwe[EDGE_SIZE]; //set of edges; minimum weight edges for all vertices
+__device__ __managed__ fromTo T[ARRAY_SIZE*ARRAY_SIZE]; //{ set of edges } initially {};
+__device__ __managed__ fromTo mwe[ARRAY_SIZE*ARRAY_SIZE]; //set of edges; minimum weight edges for all vertices
 __device__ __managed__ int z_device, Q_index=0, R_index=0, mwe_index=0, T_index=0; //Indices to synchronize between host & device
 __device__ __managed__ int edge_cnt=0; //keeps track of #edges
 
 //Arrays to hold all edges of a graph
-int allvertex_in[EDGE_SIZE], alledge_in[EDGE_SIZE], allweight_in[EDGE_SIZE];
+int allvertex_in[ARRAY_SIZE*ARRAY_SIZE], alledge_in[ARRAY_SIZE*ARRAY_SIZE], allweight_in[ARRAY_SIZE*ARRAY_SIZE];
 
 
 // class to represent a graph object
@@ -111,9 +110,9 @@ void printGraph(Graph const &graph)
 	{
 		// print all neighboring vertices of given vertex
 		for (edge v : graph.adjList[i]){
-			printf("( %d, %d, %d )", v.from, v.to, v.weight);
+			//printf("( %d, %d, %d )", v.from, v.to, v.weight);
 		}
-		printf("\n");
+		//printf("\n");
 	}
 }
 
@@ -245,7 +244,7 @@ void kernel_setup(Graph const &graph, int z_device){
 	int threads = 512;
 	int blocks = ceil(float(edge_cnt) / float(threads));
 
-	const int ARRAY_BYTES = EDGE_SIZE * sizeof(int);
+	const int ARRAY_BYTES = ARRAY_SIZE * ARRAY_SIZE * sizeof(int);
 	//printf("array bytes:%f\n", ARRAY_BYTES);
 
 	// declare GPU memory pointers
@@ -279,7 +278,7 @@ void kernel_setup(Graph const &graph, int z_device){
 	cudaEventSynchronize(stop);
     float elapsedTime;
 	cudaEventElapsedTime(&elapsedTime, start, stop);
-//	printf("Elpased Time:%f\n", elapsedTime);
+	printf("Elpased Time:%f\n", elapsedTime);
 
 	// free GPU memory allocation
 	cudaFree(allvertex_devicein);
@@ -294,7 +293,7 @@ void printMST(std::set<fromTo> T)
 	std::set<fromTo>::iterator it; //set iterator
 	for (it=T.begin(); it!=T.end(); it++) {
 		fromTo e = *it; 
-//		printf("%d - %d\n", e.from, e.to);
+		printf("%d - %d\n", e.from, e.to); 
   }
 } 
 
@@ -373,8 +372,7 @@ int main()
 	// vector of graph edges
 	std::vector<edge> edges;
 
-
-    edges.push_back(edge{168,169,1632});
+	edges.push_back(edge{168,169,1632});
     edges.push_back(edge{168,31,1063});
     edges.push_back(edge{168,128,1632});
     edges.push_back(edge{168,0,789});
@@ -7511,57 +7509,21 @@ int main()
     edges.push_back(edge{16,76,1127});
     edges.push_back(edge{16,27,2110});
 
-
-//	edges.push_back(edge{0, 1, 866});
-//    edges.push_back(edge{0, 2, 187});
-//    edges.push_back(edge{0, 3, 399});
-//
-//    edges.push_back(edge{1, 5, 605});
-//    edges.push_back(edge{1, 10, 1720});
-//    edges.push_back(edge{1, 11, 888});
-//    edges.push_back(edge{1, 12, 409});
-//
-//    edges.push_back(edge{2, 1, 739});
-//    edges.push_back(edge{2, 3, 213});
-//    edges.push_back(edge{2, 4, 541});
-//    edges.push_back(edge{2, 5, 759});
-//    edges.push_back(edge{2, 6, 1416});
-//    edges.push_back(edge{2, 7, 1391});
-//    edges.push_back(edge{2, 8, 2474});
-//    edges.push_back(edge{2, 9, 2586});
-//    edges.push_back(edge{2, 10, 2421});
-//    edges.push_back(edge{2, 11, 1625});
-//    edges.push_back(edge{2, 12, 765});
-//
-//    edges.push_back(edge{3, 4, 330});
-//    edges.push_back(edge{3, 5, 547});
-//    edges.push_back(edge{3, 12, 561});
-//
-//    edges.push_back(edge{4, 5, 226});
-//    edges.push_back(edge{4, 6, 912});
-//
-//    edges.push_back(edge{5, 6, 689});
-//    edges.push_back(edge{5, 7, 731});
-//    edges.push_back(edge{5, 11, 1199});
-//    edges.push_back(edge{5, 12, 213});
-//
-//    edges.push_back(edge{6, 7, 224});
-//    edges.push_back(edge{6, 8, 1378});
-//
-//    edges.push_back(edge{7, 8, 1234});
-//    edges.push_back(edge{7, 11, 641});
-//    edges.push_back(edge{7, 12, 631});
-//
-//    edges.push_back(edge{8, 9, 337});
-//    edges.push_back(edge{8, 11, 861});
-//
-//    edges.push_back(edge{9, 10, 678});
-//    edges.push_back(edge{9, 11, 967});
-//
-//    edges.push_back(edge{10, 11, 1024});
-//
-//	edges.push_back(edge{11, 12, 1013});
 	
+	// edges.push_back(edge{4,5,4});
+	// edges.push_back(edge{4,11,8});
+	// edges.push_back(edge{5,6,8});
+	// edges.push_back(edge{5,11,11});
+	// edges.push_back(edge{6,7,7});
+	// edges.push_back(edge{6,12,2});
+	// edges.push_back(edge{6,9,4});
+	// edges.push_back(edge{7,8,9});
+	// edges.push_back(edge{7,9,14});
+	// edges.push_back(edge{8,9,10});
+	// edges.push_back(edge{9,10,2});
+	// edges.push_back(edge{10,11,1});
+	// edges.push_back(edge{10,12,6});
+	// edges.push_back(edge{11,12,7});
 
 	// construct graph
 	Graph graph(edges, ARRAY_SIZE);
@@ -7580,27 +7542,19 @@ int main()
 		}
 	}	
 	
-	printf("source:%d\n", source);
+	//printf("source:%d\n", source);
 	
-  	printf("Before Prim\n");
-//    clock_t t;
-//    t = clock();
+  	//printf("Before Prim\n");
+
 	primMST(graph, ARRAY_SIZE, source);
-//    t = clock() - t;
-//    double time_taken = ((double)t)/(CLOCKS_PER_SEC/1000); // calculate the elapsed time
-//    printf("Parallel took %f ms to execute\n", time_taken);
-//    printf("min at host: %d\n", min);
-  	printf("After Prim\n");
+	
+  	//printf("After Prim\n");
 
 	//printf("T size:%d\n", T_index);
 	//printf("MST in iterator\n");
-//    FILE *mst;
-//    mst = fopen("PAR-YEAR-AIRLINE.txt", "w");
-//    fprintf(mst,"Parallel took %f ms to execute\n", time_taken);
 	for (int i =0; i<T_index; i++) {
 		fromTo e = T[i]; 
-		printf("%d - %d\n", e.from, e.to);
-//        fprintf(mst,"%d - %d\n", e.from, e.to);
+		printf("%d - %d\n", e.from, e.to); 
 	}
 
 	
@@ -7609,3 +7563,4 @@ int main()
 
 //Reference: https://www.geeksforgeeks.org/prims-mst-for-adjacency-list-representation-greedy-algo-6/
 // https://www.techiedelight.com/graph-implementation-using-stl/
+
