@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <queue>
 #include <set>
@@ -8,10 +9,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
-#include <limits.h>       //For PATH_MAX
+#include <limits.h>
 
+#define NODE_ARRAY_SIZE 400
+#define EDGE_ARRAY_SIZE 50000
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-
 
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) {
     if (code != cudaSuccess) {
@@ -19,6 +21,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort =
         if (abort) exit(code);
     }
 }
+
 
 // Structure to represent a vertex and its distance
 struct distNode {
@@ -51,11 +54,23 @@ struct fromTo {
     }
 };
 
+
+// Initialize global variables
+__device__ __managed__ int parent[NODE_ARRAY_SIZE]; // Array to store parent nodes
+__device__ __managed__ int dist[NODE_ARRAY_SIZE]; // Array to store node distances
+__device__ __managed__ bool fixed[NODE_ARRAY_SIZE]; // Array to store flags for node traversal
 std::vector<bool> nonEmptyIndices; // Array to store non empty indices of vertices
 
 std::priority_queue <distNode> H; //binary heap of (j,dist) initially empty;
+__device__ __managed__ int Q[NODE_ARRAY_SIZE], R[NODE_ARRAY_SIZE]; //set of vertices initially empty;
+__device__ __managed__ fromTo T[EDGE_ARRAY_SIZE]; //{ set of edges } initially {};
+__device__ __managed__ fromTo mwe[EDGE_ARRAY_SIZE]; //set of edges; minimum weight edges for all vertices
 __device__ __managed__ int z_device, Q_index = 0, R_index = 0, mwe_index = 0, T_index = 0; //Indices to synchronize between host & device
 __device__ __managed__ int edge_cnt = 0; //keeps track of #edges
+
+//Arrays to hold all edges of a graph
+int allvertex_in[EDGE_ARRAY_SIZE], alledge_in[EDGE_ARRAY_SIZE], allweight_in[EDGE_ARRAY_SIZE];
+
 
 // class to represent a graph object
 class Graph {
@@ -89,7 +104,7 @@ public:
 };
 
 
-//print adjacency list representation of graph
+// print adjacency list representation of graph
 void printGraph(Graph const &graph) {
     for (int i = 0; i < graph.adjList.size(); i++) {
         // print all neighboring vertices of given vertex
@@ -105,26 +120,17 @@ void printGraph(Graph const &graph) {
 void deleteElement(int arr[], int arr_index, int size) {
 
     if (arr_index < size) {
-        //decrease the size of array and move all elements ahead
+        // decrease the size of array and move all elements ahead
         size = size - 1;
         for (int j = arr_index; j < size; j++)
             arr[j] = arr[j + 1];
     }
 }
 
-// Function to print the constructed MST
-void printMST(std::set <fromTo> T) {
-    std::set<fromTo>::iterator it; //set iterator
-    for (it = T.begin(); it != T.end(); it++) {
-        fromTo e = *it;
-        printf("%d - %d\n", e.from, e.to);
-    }
-}
-
 //Check if an element exists in an array
 //template<typename T>
-__device__ bool ifExist(int arr[], int val, int size) {
-    for (int i = 0; i < size; i++) {
+__device__ bool ifExist(int arr[], int val) {
+    for (int i = 0; i < NODE_ARRAY_SIZE; i++) {
         if (arr[i] == val)
             return true;
     }
@@ -139,6 +145,42 @@ __device__ bool ifExistMWE(fromTo arr[], fromTo ft) {
     return false;
 }
 
+
+//Function to load edges into kernel pointer arrays
+void load_kernelArrays(Graph const &graph) {
+    // generate the input array on the host
+    //atmost a node can connect to all other nodes
+    for (int i = 0; i < graph.adjList.size(); i++) {
+        for (edge adj : graph.adjList[i]) {
+            allvertex_in[edge_cnt] = adj.from;
+            alledge_in[edge_cnt] = adj.to;
+            allweight_in[edge_cnt] = adj.weight;
+            edge_cnt++;
+        }
+    }
+}
+
+//Identifies all minimum weight edges for all vertices
+void initMWE(Graph const &graph) {
+    for (int i = 0; i < graph.adjList.size(); i++) {
+        int prevWeight = INT_MAX;
+        int min_to, minFrom;
+        // Iterate through all the vertices of graph
+        for (auto it = graph.adjList[i].begin(); it != graph.adjList[i].end(); it++) {
+            edge adj = *it;
+            // Get the Minimum weight edge for vertex adj.from
+            if (adj.weight < prevWeight) {
+                min_to = adj.to;
+                minFrom = adj.from;
+                prevWeight = adj.weight;
+            }
+        }
+        mwe[mwe_index] = fromTo{minFrom, min_to};
+        mwe_index++;
+    }
+}
+
+
 //Kernel to process edges in Parallel
 __global__ void parallel_processEdge(int *allvertex_devicein, int *alledge_devicein,
                                      int *allweight_devicein, int z_device) {
@@ -146,7 +188,7 @@ __global__ void parallel_processEdge(int *allvertex_devicein, int *alledge_devic
     int myId = threadIdx.x + blockDim.x * blockIdx.x;
     // int tid  = threadIdx.x;
 
-    //printf("block:%d, myId: %d\n", blockIdx.x, myId); 
+    //printf("block:%d, myId: %d\n", blockIdx.x, myId);
 
     // process edges in R
     if (myId < edge_cnt) {
@@ -190,26 +232,26 @@ __global__ void parallel_processEdge(int *allvertex_devicein, int *alledge_devic
 }
 
 //Kernel Setup
-void kernel_setup(Graph const &graph, int z_device, int edge_count) {
+void kernel_setup(Graph const &graph, int z_device) {
 
     int threads = 512;
     int blocks = ceil(float(edge_cnt) / float(threads));
 
-    const int EDGE_ARRAY_BYTES = edge_count * sizeof(int);
+    const int ARRAY_BYTES = EDGE_ARRAY_SIZE * sizeof(int);
     //printf("array bytes:%f\n", ARRAY_BYTES);
 
     // declare GPU memory pointers
     int *allvertex_devicein, *alledge_devicein, *allweight_devicein;
 
     // allocate GPU memory
-    cudaMalloc((void **) &allvertex_devicein, EDGE_ARRAY_BYTES);
-    cudaMalloc((void **) &alledge_devicein, EDGE_ARRAY_BYTES);
-    cudaMalloc((void **) &allweight_devicein, EDGE_ARRAY_BYTES);
+    cudaMalloc((void **) &allvertex_devicein, ARRAY_BYTES);
+    cudaMalloc((void **) &alledge_devicein, ARRAY_BYTES);
+    cudaMalloc((void **) &allweight_devicein, ARRAY_BYTES);
 
     // transfer the input array to the GPU
-    cudaMemcpy(allvertex_devicein, allvertex_in, EDGE_ARRAY_BYTES, cudaMemcpyHostToDevice);
-    gpuErrchk(cudaMemcpy(alledge_devicein, alledge_in, EDGE_ARRAY_BYTES, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(allweight_devicein, allweight_in, EDGE_ARRAY_BYTES, cudaMemcpyHostToDevice));
+    cudaMemcpy(allvertex_devicein, allvertex_in, ARRAY_BYTES, cudaMemcpyHostToDevice);
+    gpuErrchk(cudaMemcpy(alledge_devicein, alledge_in, ARRAY_BYTES, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(allweight_devicein, allweight_in, ARRAY_BYTES, cudaMemcpyHostToDevice));
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -227,7 +269,7 @@ void kernel_setup(Graph const &graph, int z_device, int edge_count) {
     cudaEventSynchronize(stop);
     float elapsedTime;
     cudaEventElapsedTime(&elapsedTime, start, stop);
-    printf("Elapsed Time:%f\n", elapsedTime);
+//    printf("Elpased Time:%f\n", elapsedTime);
 
     // free GPU memory allocation
     cudaFree(allvertex_devicein);
@@ -235,27 +277,17 @@ void kernel_setup(Graph const &graph, int z_device, int edge_count) {
     cudaFree(allweight_devicein);
 };
 
-//Identifies all minimum weight edges for all vertices
-void initMWE(Graph const &graph) {
-    for (int i = 0; i < graph.adjList.size(); i++) {
-        int prevWeight = INT_MAX;
-        int min_to, minFrom;
-        // Iterate through all the vertices of graph
-        for (auto it = graph.adjList[i].begin(); it != graph.adjList[i].end(); it++) {
-            edge adj = *it;
-            // Get the Minimum weight edge for vertex adj.from
-            if (adj.weight < prevWeight) {
-                min_to = adj.to;
-                minFrom = adj.from;
-                prevWeight = adj.weight;
-            }
-        }
-        mwe[mwe_index] = fromTo{minFrom, min_to};
-        mwe_index++;
+
+// Function to print the constructed MST
+void printMST(std::set <fromTo> T) {
+    std::set<fromTo>::iterator it; //set iterator
+    for (it = T.begin(); it != T.end(); it++) {
+        fromTo e = *it;
+        printf("%d - %d\n", e.from, e.to);
     }
 }
 
-// The main function that constructs Minimum Spanning Tree (MST) 
+// The main function that constructs Minimum Spanning Tree (MST)
 // using Prim's Parallel algorithm given in chapter 7
 fromTo *primMST(Graph const &graph, int N, int source) {
     std::set<int>::iterator it; //set iterator
@@ -296,7 +328,7 @@ fromTo *primMST(Graph const &graph, int N, int source) {
                 //printf("R_index: %d\n", R_index);
                 z_device = R[0];
                 //printf("Z before kernel:%d\n", z_device);
-                deleteElement(R, 0, ARRAY_SIZE);
+                deleteElement(R, 0, NODE_ARRAY_SIZE);
                 R_index--;
                 //call kernel setup
                 kernel_setup(graph, z_device);
@@ -306,7 +338,7 @@ fromTo *primMST(Graph const &graph, int N, int source) {
                 for (int i = 0; i < Q_index; i++) {
                     int z = Q[i];
                     //printf("z in Q:%d\n", z);
-                    deleteElement(Q, i, ARRAY_SIZE);
+                    deleteElement(Q, i, NODE_ARRAY_SIZE);
                     Q_index--;
                     if (!fixed[z]) {
                         H.push(distNode{z, dist[z]});
@@ -318,7 +350,7 @@ fromTo *primMST(Graph const &graph, int N, int source) {
     if (T_index == graph.adjList.size() - 1) {
         return T;
     } else
-        return new fromTo[ARRAY_SIZE]; // return empty tree
+        return new fromTo[NODE_ARRAY_SIZE]; // return empty tree
 
 }
 
@@ -330,7 +362,22 @@ const char *get_filename_ext(const char *filename) {
 
 // Driver program to call Prim
 int main() {
+    // vector of graph edges
     std::vector <edge> edges;
+//    edges.push_back(edge{4, 5, 4});
+//    edges.push_back(edge{4, 11, 8});
+//    edges.push_back(edge{5, 6, 8});
+//    edges.push_back(edge{5, 11, 11});
+//    edges.push_back(edge{6, 7, 7});
+//    edges.push_back(edge{6, 12, 2});
+//    edges.push_back(edge{6, 9, 4});
+//    edges.push_back(edge{7, 8, 9});
+//    edges.push_back(edge{7, 9, 14});
+//    edges.push_back(edge{8, 9, 10});
+//    edges.push_back(edge{9, 10, 2});
+//    edges.push_back(edge{10, 11, 1});
+//    edges.push_back(edge{10, 12, 6});
+//    edges.push_back(edge{11, 12, 7});
     struct dirent *de;  // Pointer for directory entry
 
     // opendir() returns a pointer of DIR type.
@@ -359,7 +406,6 @@ int main() {
             int state = 0;
             int subState = 0;
             int node_count = 0;
-            int edge_count = 0;
 
             while (fgets(line, sizeof(line), file)) {
                 char *token;
@@ -410,7 +456,6 @@ int main() {
 //                        printf("Value is %s\n", token);
                         value = (int) atoi(token);
                         edges.push_back(edge{source, target, value});
-                        edge_count = edge_count+1;
                         subState = 0;
                         break;
                     }
@@ -420,44 +465,21 @@ int main() {
                     }
                 }
             }
-//            printf("close file\n");
+            printf("close file\n");
             fclose(file);
 //            printf("done with file\n");
             // Maxmum label value of vertices in the given graph, assume 1000
-            int ARRAY_SIZE = node_count;
-            int EDGE_SIZE = edge_count;
-            printf("%i count of nodes\n", node_count);
-
-            // Initialize global variables
-            __device__ __managed__ int parent[ARRAY_SIZE]; // Array to store parent nodes
-            __device__ __managed__ int dist[ARRAY_SIZE]; // Array to store node distances
-            __device__ __managed__ bool fixed[ARRAY_SIZE]; // Array to store flags for node traversal
-
-            __device__ __managed__ int Q[ARRAY_SIZE], R[ARRAY_SIZE]; //set of vertices initially empty;
-            __device__ __managed__ fromTo T[EDGE_SIZE]; //{ set of edges } initially {};
-            __device__ __managed__ fromTo mwe[EDGE_SIZE]; //set of edges; minimum weight edges for all vertices
-            int allvertex_in[EDGE_SIZE], alledge_in[EDGE_SIZE, allweight_in[EDGE_SIZE];//Arrays to hold all edges of a graph
-
+//            int N = node_count;
+//            printf("%i count of nodes\n", node_count);
             // construct graph
-            Graph graph(edges, N);
-            printf("created graph\n");
-
-            // generate the input array on the host
-            //atmost a node can connect to all other nodes
-            for (int i = 0; i < graph.adjList.size(); i++) {
-                for (edge adj : graph.adjList[i]) {
-                    allvertex_in[edge_cnt] = adj.from;
-                    alledge_in[edge_cnt] = adj.to;
-                    allweight_in[edge_cnt] = adj.weight;
-                    edge_cnt++;
-                }
-            }
+            Graph graph(edges, NODE_ARRAY_SIZE);
+            load_kernelArrays(graph);
 
             // print adjacency list representation of graph
-            printGraph(graph);
+//            printGraph(graph);
 
-//			//Source vertex as first non empty vertex in adjacency List
-//			//Or modify this to take from input file
+            //Source vertex as first non empty vertex in adjacency List
+            //Or modify this to take from input file
             int source;
             for (int i = 0; i < nonEmptyIndices.size(); i++) {
                 if (nonEmptyIndices[i]) {
@@ -469,88 +491,33 @@ int main() {
             printf("source:%d\n", source);
 
             printf("Before Prim\n");
-//            flush( stdout );
-            primMST(graph, N, source);
+
+            primMST(graph, NODE_ARRAY_SIZE, source);
+
             printf("After Prim\n");
-//            fflush( stdout );
-
-            std::set<fromTo>::iterator it; //set iterator
-//            printf("T size:%d\n", T.size());
-            printf("MST in iterator\n");
+//            printf("MST in iterator\n");
             FILE *mst;
-            char output[10], filename2[50], extension[5];
+            char output[15], filename2[50],extension[5];
 
-            strcpy(output, "poutput_");
+            strcpy(output,  "par_output_");
             strcpy(filename2, strtok(de->d_name, "."));
             strcpy(extension, ".txt");
             strcat(output, filename2);
             strcat(output, extension);
             mst = fopen(output, "w");
-            for (it = T.begin(); it != T.end(); ++it) {
-                fromTo e = *it;
-                fprintf(mst, "%d - %d\n", e.from, e.to);
+            //printf("T size:%d\n", T_index);
+            //printf("MST in iterator\n");
+            for (int i = 0; i < T_index; i++) {
+                fromTo e = T[i];
+//                printf("%d - %d\n", e.from, e.to);
+                fprintf(mst,"%d - %d\n", e.from, e.to);
             }
+
 
             return 0;
         }
-
     }
-
-    closedir(dr);
-
-
-//
-//	// vector of graph edges
-//	std::vector<edge> edges;
-//	edges.push_back(edge{4,5,4});
-//	edges.push_back(edge{4,11,8});
-//	edges.push_back(edge{5,6,8});
-//	edges.push_back(edge{5,11,11});
-//	edges.push_back(edge{6,7,7});
-//	edges.push_back(edge{6,12,2});
-//	edges.push_back(edge{6,9,4});
-//	edges.push_back(edge{7,8,9});
-//	edges.push_back(edge{7,9,14});
-//	edges.push_back(edge{8,9,10});
-//	edges.push_back(edge{9,10,2});
-//	edges.push_back(edge{10,11,1});
-//	edges.push_back(edge{10,12,6});
-//	edges.push_back(edge{11,12,7});
-//
-//	// construct graph
-//	Graph graph(edges, ARRAY_SIZE);
-//	load_kernelArrays(graph);
-
-//	// print adjacency list representation of graph
-//	printGraph(graph);
-//
-//	//Source vertex as first non empty vertex in adjacency List
-//	//Or modify this to take from input file
-//	int source;
-//	for(int i = 0; i<nonEmptyIndices.size(); i++) {
-//			if (nonEmptyIndices[i]) {
-//				source = i;
-//			break;
-//		}
-//	}
-//
-//	//printf("source:%d\n", source);
-//
-//  	//printf("Before Prim\n");
-//
-//	primMST(graph, ARRAY_SIZE, source);
-//
-//  	//printf("After Prim\n");
-//
-//	//printf("T size:%d\n", T_index);
-//	//printf("MST in iterator\n");
-//	for (int i =0; i<T_index; i++) {
-//		fromTo e = T[i];
-//		printf("%d - %d\n", e.from, e.to);
-//	}
-//
-//
-//	return 0;
+//    return 0;
 }
 
 //Reference: https://www.geeksforgeeks.org/prims-mst-for-adjacency-list-representation-greedy-algo-6/
