@@ -1,0 +1,105 @@
+( 0, 1, 866 )( 0, 2, 187 )( 0, 3, 399 )
+( 1, 0, 866 )( 1, 5, 605 )( 1, 10, 1720 )( 1, 11, 888 )( 1, 12, 409 )( 1, 2, 739 )
+( 2, 0, 187 )( 2, 1, 739 )( 2, 3, 213 )( 2, 4, 541 )( 2, 5, 759 )( 2, 6, 1416 )( 2, 7, 1391 )( 2, 8, 2474 )( 2, 9, 2586 )( 2, 10, 2421 )( 2, 11, 1625 )( 2, 12, 765 )
+( 3, 0, 399 )( 3, 2, 213 )( 3, 4, 330 )( 3, 5, 547 )( 3, 12, 561 )
+( 4, 2, 541 )( 4, 3, 330 )( 4, 5, 226 )( 4, 6, 912 )
+( 5, 1, 605 )( 5, 2, 759 )( 5, 3, 547 )( 5, 4, 226 )( 5, 6, 689 )( 5, 7, 731 )( 5, 11, 1199 )( 5, 12, 213 )
+( 6, 2, 1416 )( 6, 4, 912 )( 6, 5, 689 )( 6, 7, 224 )( 6, 8, 1378 )
+( 7, 2, 1391 )( 7, 5, 731 )( 7, 6, 224 )( 7, 8, 1234 )( 7, 11, 641 )( 7, 12, 631 )
+( 8, 2, 2474 )( 8, 6, 1378 )( 8, 7, 1234 )( 8, 9, 337 )( 8, 11, 861 )
+( 9, 2, 2586 )( 9, 8, 337 )( 9, 10, 678 )( 9, 11, 967 )
+( 10, 1, 1720 )( 10, 2, 2421 )( 10, 9, 678 )( 10, 11, 1024 )
+( 11, 1, 888 )( 11, 2, 1625 )( 11, 5, 1199 )( 11, 7, 641 )( 11, 8, 861 )( 11, 9, 967 )( 11, 10, 1024 )( 11, 12, 1013 )
+( 12, 1, 409 )( 12, 2, 765 )( 12, 3, 561 )( 12, 5, 213 )( 12, 7, 631 )( 12, 11, 1013 )
+
+
+Pop min distance node:0
+not minimum edge and not fixed k, z:0, k:1
+In MWE and not fixed k, z:0, k:2
+not minimum edge and not fixed k, z:0, k:3
+not minimum edge and not fixed k, z:2, k:1
+not minimum edge and not fixed k, z:2, k:3
+not minimum edge and not fixed k, z:2, k:4
+not minimum edge and not fixed k, z:2, k:5
+not minimum edge and not fixed k, z:2, k:6
+not minimum edge and not fixed k, z:2, k:7
+not minimum edge and not fixed k, z:2, k:8
+not minimum edge and not fixed k, z:2, k:9
+not minimum edge and not fixed k, z:2, k:10
+not minimum edge and not fixed k, z:2, k:11
+not minimum edge and not fixed k, z:2, k:12
+z in Q:1
+z in Q:3
+z in Q:4
+z in Q:5
+z in Q:6
+z in Q:7
+z in Q:8
+z in Q:9
+z in Q:10
+z in Q:11
+z in Q:12
+Pop min distance node:3
+not minimum edge and not fixed k, z:3, k:4
+not minimum edge and not fixed k, z:3, k:5
+not minimum edge and not fixed k, z:3, k:12
+z in Q:4
+z in Q:5
+z in Q:12
+Pop min distance node:4
+In MWE and not fixed k, z:4, k:5
+not minimum edge and not fixed k, z:4, k:6
+not minimum edge and not fixed k, z:5, k:1
+not minimum edge and not fixed k, z:5, k:6
+not minimum edge and not fixed k, z:5, k:7
+not minimum edge and not fixed k, z:5, k:11
+In MWE and not fixed k, z:5, k:12
+not minimum edge and not fixed k, z:12, k:1
+not minimum edge and not fixed k, z:12, k:7
+not minimum edge and not fixed k, z:12, k:11
+z in Q:1
+z in Q:6
+z in Q:7
+z in Q:11
+Pop min distance node:1
+not minimum edge and not fixed k, z:1, k:10
+not minimum edge and not fixed k, z:1, k:11
+z in Q:10
+z in Q:11
+Pop min distance node:4
+Pop min distance node:5
+Pop min distance node:12
+Pop min distance node:7
+In MWE and not fixed k, z:7, k:6
+not minimum edge and not fixed k, z:7, k:8
+not minimum edge and not fixed k, z:7, k:11
+z in Q:8
+z in Q:11
+Pop min distance node:11
+not minimum edge and not fixed k, z:11, k:8
+not minimum edge and not fixed k, z:11, k:9
+not minimum edge and not fixed k, z:11, k:10
+z in Q:8
+z in Q:9
+z in Q:10
+Pop min distance node:6
+Pop min distance node:1
+Pop min distance node:5
+Pop min distance node:12
+Pop min distance node:8
+In MWE and not fixed k, z:8, k:9
+not minimum edge and not fixed k, z:9, k:10
+z in Q:10
+Pop min distance node:10
+2 - 0
+3 - 2
+4 - 3
+5 - 4
+12 - 5
+6 - 7
+11 - 7
+9 - 8
+10 - 9
+8 - 11
+1 - 12
+7 - 12

@@ -1,0 +1,26 @@
+Elpased Time:0.143200
+Elpased Time:0.126656
+Elpased Time:0.124864
+Elpased Time:0.532768
+Elpased Time:0.112672
+Elpased Time:0.114720
+Elpased Time:0.132992
+Elpased Time:0.120224
+Elpased Time:0.116736
+Elpased Time:0.192480
+Elpased Time:0.114720
+Elpased Time:0.147296
+Elpased Time:0.476704
+2 - 0
+3 - 2
+4 - 3
+5 - 4
+12 - 5
+1 - 12
+7 - 12
+6 - 7
+11 - 7
+8 - 11
+9 - 8
+10 - 9
+
