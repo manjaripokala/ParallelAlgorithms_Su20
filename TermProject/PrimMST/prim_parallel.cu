@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <cuda_runtime.h>
 
-#define ARRAY_SIZE 140
+#define ARRAY_SIZE 30
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
