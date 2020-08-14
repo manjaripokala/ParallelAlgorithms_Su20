@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <cuda_runtime.h>
 
-#define ARRAY_SIZE 12000
+#define ARRAY_SIZE 140
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
@@ -109,11 +109,12 @@ public:
 // print adjacency list representation of graph
 void printGraph(Graph const &graph)
 {
+	printf("Input Graph\n");
 	for (int i = 0; i < graph.adjList.size(); i++)
 	{
 		// print all neighboring vertices of given vertex
 		for (edge v : graph.adjList[i]){
-			//printf("( %d, %d, %d )", v.from, v.to, v.weight);
+			printf("( %d, %d, %d )", v.from, v.to, v.weight);
 		}
 		//printf("\n");
 	}
@@ -205,10 +206,12 @@ __global__ void parallel_processEdge(int *allvertex_devicein, int *alledge_devic
 		{
 			//printf("Z found, allvertex_devicein[myId] :%d\n", allvertex_devicein[myId]);
 			////printf("block:%d, myId: %d\n", blockIdx.x, myId); 
+			printf("Thread %d looking for the Edge to be processed\n", threadIdx.x);
 			int k_device = alledge_devicein[myId];
 			//printf("k_device: %d\n", k_device);
 			int w_device = allweight_devicein[myId];
 			//printf("w_device: %d\n", w_device);
+			printf("Edge {%d, %d, %d} found at myID:%d\n", z_device, k_device, w_device);
 
 			if (!fixed[k_device]) {
 				if (ifExistMWE(mwe, fromTo{z_device, k_device})) {
@@ -220,11 +223,15 @@ __global__ void parallel_processEdge(int *allvertex_devicein, int *alledge_devic
 							
 					int r = atomicAdd(&R_index, 1);
 					R[r] = k_device;
+					printf("Destination node is not fixed & also a minimum edge for Z:%d\n", z_device);
+					printf("Adding k:%d to Tree & R for processing\n", k_device);
 					//printf("R_index in kernel:%d\n", R_index);
 				}
 				else if (dist[k_device] > w_device) {
 					//printf("not minimum edge and not fixed k, z:%d, k:%d\n", z_device, k_device);
 					//printf("\n");
+					printf("Destination node is not fixed & NOT a minimum weight edge\n");
+					printf("Adding k:%d to Q for inserting into Heap\n", k_device);
 					dist[k_device] = w_device;
 					parent[k_device] = z_device;
 
@@ -316,8 +323,9 @@ fromTo* primMST(Graph const &graph, int N, int source)
 		distNode d = H.top();
 		H.pop();
 		int j = d.node; //pop the minimum distance vertex
-		//printf("Pop min distance node:%d\n", j);
+		printf("Popped minimum distance node:%d\n", j);
 		if (!fixed[j]) {
+			printf("Popped node is not fixed adding it to R\n");
 			R[R_index] = j;
 			R_index++;
 			fixed[j] = true;
@@ -335,19 +343,21 @@ fromTo* primMST(Graph const &graph, int N, int source)
 				deleteElement(R, 0, ARRAY_SIZE);
 				R_index--;
 				//call kernel setup
+				printf("Calling kernel for processing edges of elements in R in parallel\n");
 				kernel_setup(graph, z_device);
 			}	
 			
 			while (Q_index != 0) {
-				for (int i = 0; i < Q_index; i++) {
-					int z = Q[i];
+				//for (int i = 0; i < Q_index; i++) {
+					printf("Adding all elements from Q to Heap H\n");
+					int z = Q[0];
 					//printf("z in Q:%d\n", z);
-					deleteElement(Q, i, ARRAY_SIZE);
+					deleteElement(Q, 0, ARRAY_SIZE);
 					Q_index--;
 					if (!fixed[z]) {
 						H.push(distNode{z, dist[z]});
 					}
-				}
+				//}
 			}
 		}
 	}
@@ -474,6 +484,8 @@ int main()
 
 	//printf("T size:%d\n", T_index);
 	//printf("MST in iterator\n");
+	printf("\n====================================\n");
+	printf("Minimum Spanning Tree using Prim \n");
 	for (int i =0; i<T_index; i++) {
 		fromTo e = T[i]; 
 		printf("%d - %d\n", e.from, e.to); 
