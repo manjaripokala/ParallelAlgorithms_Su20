@@ -363,11 +363,74 @@ int main()
 { 
 	printf("2010_Alaskan.txt\n");
 	// vector of graph edges
-	std::vector<edge> edges;
+    std::vector<edge> edges;
+    
+    edges.push_back(edge{0, 1, 866});
+    edges.push_back(edge{0, 2, 187});
+    edges.push_back(edge{0, 3, 399});
 
-	// START 
+    edges.push_back(edge{1, 5, 605});
+    edges.push_back(edge{1, 10, 1720});
+    edges.push_back(edge{1, 11, 888});
+    edges.push_back(edge{1, 12, 409});
 
-	// STOP
+    edges.push_back(edge{2, 1, 739});
+    edges.push_back(edge{2, 3, 213});
+    edges.push_back(edge{2, 4, 541});
+    edges.push_back(edge{2, 5, 759});
+    edges.push_back(edge{2, 6, 1416});
+    edges.push_back(edge{2, 7, 1391});
+    edges.push_back(edge{2, 8, 2474});
+    edges.push_back(edge{2, 9, 2586});
+    edges.push_back(edge{2, 10, 2421});
+    edges.push_back(edge{2, 11, 1625});
+    edges.push_back(edge{2, 12, 765});
+
+    edges.push_back(edge{3, 4, 330});
+    edges.push_back(edge{3, 5, 547});
+    edges.push_back(edge{3, 12, 561});
+
+    edges.push_back(edge{4, 5, 226});
+    edges.push_back(edge{4, 6, 912});
+
+    edges.push_back(edge{5, 6, 689});
+    edges.push_back(edge{5, 7, 731});
+    edges.push_back(edge{5, 11, 1199});
+    edges.push_back(edge{5, 12, 213});
+
+    edges.push_back(edge{6, 7, 224});
+    edges.push_back(edge{6, 8, 1378});
+
+    edges.push_back(edge{7, 8, 1234});
+    edges.push_back(edge{7, 11, 641});
+    edges.push_back(edge{7, 12, 631});
+
+    edges.push_back(edge{8, 9, 337});
+    edges.push_back(edge{8, 11, 861});
+
+    edges.push_back(edge{9, 10, 678});
+    edges.push_back(edge{9, 11, 967});
+
+    edges.push_back(edge{10, 11, 1024});
+
+	edges.push_back(edge{11, 12, 1013});
+
+
+	
+	// edges.push_back(edge{4,5,4});
+	// edges.push_back(edge{4,11,8});
+	// edges.push_back(edge{5,6,8});
+	// edges.push_back(edge{5,11,11});
+	// edges.push_back(edge{6,7,7});
+	// edges.push_back(edge{6,12,2});
+	// edges.push_back(edge{6,9,4});
+	// edges.push_back(edge{7,8,9});
+	// edges.push_back(edge{7,9,14});
+	// edges.push_back(edge{8,9,10});
+	// edges.push_back(edge{9,10,2});
+	// edges.push_back(edge{10,11,1});
+	// edges.push_back(edge{10,12,6});
+	// edges.push_back(edge{11,12,7});
 
 	// construct graph
 	Graph graph(edges, ARRAY_SIZE);
